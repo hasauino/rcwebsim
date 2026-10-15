@@ -8,7 +8,16 @@ import {
   Vector3,
 } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { mix, positionLocal, positionWorld, sin, time, uv, vec3 } from 'three/tsl'
+import {
+  mix,
+  normalViewGeometry,
+  positionLocal,
+  positionWorld,
+  sin,
+  time,
+  uv,
+  vec3,
+} from 'three/tsl'
 import { FIELD, terrainHeight } from '../sim/field'
 import { Rng } from '../sim/rng'
 
@@ -25,7 +34,13 @@ function bladeGeometry(): BufferGeometry {
   const g = new BufferGeometry()
   g.setAttribute('position', new Float32BufferAttribute(positions, 3))
   g.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
-  g.computeVertexNormals()
+  g.setAttribute(
+    'normal',
+    new Float32BufferAttribute(
+      positions.map((_, i) => (i % 3 === 1 ? 1 : 0)),
+      3,
+    ),
+  )
   return g
 }
 
@@ -38,7 +53,10 @@ export function createGrass(count: number): InstancedMesh {
   const height = uv().y
   const sway = sin(time.mul(1.7).add(positionWorld.x.mul(0.35)).add(positionWorld.z.mul(0.21)))
   material.positionNode = positionLocal.add(vec3(sway.mul(height.mul(height)).mul(0.08), 0, 0))
-  material.colorNode = mix(vec3(0.07, 0.13, 0.03), vec3(0.32, 0.45, 0.14), height)
+  material.colorNode = mix(vec3(0.07, 0.13, 0.03), vec3(0.2, 0.32, 0.08), height)
+  // Light both faces like the ground they grow from (geometry normals point
+  // up); otherwise every back face is lit from below and renders black.
+  material.normalNode = normalViewGeometry
 
   const mesh = new InstancedMesh(bladeGeometry(), material, count)
   const rng = new Rng(3)

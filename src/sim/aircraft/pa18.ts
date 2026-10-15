@@ -225,13 +225,24 @@ export const pa18: AircraftSpec = {
   model: {
     // helijah's full-scale PA-18 (10.72 m span, Z-up, nose -X) scaled to 1.7 m
     // and turned nose-forward; offset puts its wing root leading edge on the
-    // datum. The export is merged per material, so no control surface or
-    // propeller node can be animated until it is split (see docs/adr/0010).
+    // datum. scripts/split-model.ts splits the moving parts out of the export
+    // into nodes turning about their local +X (see docs/adr/0010).
     url: 'models/pa18/scene.gltf',
     scale: 0.1586,
     rotationDeg: [0, -90, 0],
     offset: [0, -0.0917, 0.3107],
-    nodes: {},
+    nodes: {
+      propeller: { node: 'propeller', axis: [1, 0, 0], blades: 'propeller_blades' },
+      controls: {
+        'aileron.left': { node: 'aileron_left', hingeAxis: [1, 0, 0] },
+        'aileron.right': { node: 'aileron_right', hingeAxis: [1, 0, 0] },
+        'flap.left': { node: 'flap_left', hingeAxis: [1, 0, 0] },
+        'flap.right': { node: 'flap_right', hingeAxis: [1, 0, 0] },
+        'elevator.left': { node: 'elevator_left', hingeAxis: [1, 0, 0] },
+        'elevator.right': { node: 'elevator_right', hingeAxis: [1, 0, 0] },
+        'rudder.center': { node: 'rudder', hingeAxis: [1, 0, 0] },
+      },
+    },
     credit: {
       title: 'Piper PA-18',
       author: 'helijah',

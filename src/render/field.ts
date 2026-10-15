@@ -1,13 +1,17 @@
 import {
   BoxGeometry,
+  CylinderGeometry,
+  Euler,
   Group,
   InstancedMesh,
   Matrix4,
   Mesh,
   PlaneGeometry,
+  Quaternion,
   RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
+  Vector3,
   type Texture,
 } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
@@ -24,6 +28,7 @@ import {
   vec3,
 } from 'three/tsl'
 import { FIELD, terrainHeight } from '../sim/field'
+import { Rng } from '../sim/rng'
 
 async function loadTexture(url: string, srgb: boolean): Promise<Texture> {
   const t = await new TextureLoader().loadAsync(url)
@@ -98,30 +103,74 @@ export async function createField(segments: number): Promise<Group> {
   ground.name = 'terrain'
   group.add(ground)
 
-  group.add(createFence())
+  group.add(await createFence())
   return group
 }
 
-/** Post-and-rail safety fence between the pilots and the runway. */
-function createFence(): Group {
+/**
+ * Post-and-rail safety fence: round weathered posts, each leaning a little,
+ * with split rails spanning post to post on the runway side.
+ */
+async function createFence(): Promise<Group> {
   const fence = new Group()
-  const wood = new MeshStandardNodeMaterial({ color: 0x8a7458, roughness: 0.9 })
+  const [map, normals, roughness] = await Promise.all([
+    loadTexture('assets/textures/rough_wood_diff_1k.jpg', true),
+    loadTexture('assets/textures/rough_wood_nor_gl_1k.jpg', false),
+    loadTexture('assets/textures/rough_wood_rough_1k.jpg', false),
+  ])
+  const wood = new MeshStandardNodeMaterial({ map, normalMap: normals, roughnessMap: roughness })
   const { z, halfLength } = FIELD.fence
   const spacing = 2.5
   const count = Math.floor((halfLength * 2) / spacing) + 1
-  const posts = new InstancedMesh(new BoxGeometry(0.1, 1.1, 0.1), wood, count)
+  const rng = new Rng(17)
+
+  const postHeight = 1.3
+  const postGeometry = new CylinderGeometry(0.06, 0.075, postHeight, 12, 1)
+  postGeometry.translate(0, postHeight / 2 - 0.15, 0)
+  const posts = new InstancedMesh(postGeometry, wood, count)
+
+  // A split rail: wider than deep, grain along its length.
+  const railGeometry = new BoxGeometry(spacing + 0.12, 0.1, 0.05)
+  const uv = railGeometry.attributes.uv!
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getY(i) * 0.15, uv.getX(i) * 2.5)
+  const rails = new InstancedMesh(railGeometry, wood, (count - 1) * 2)
+
   const m = new Matrix4()
+  const q = new Quaternion()
+  const e = new Euler()
+  const tops: Vector3[] = []
   for (let i = 0; i < count; i++) {
-    const x = -halfLength + i * spacing
-    posts.setMatrixAt(i, m.makeTranslation(x, terrainHeight(x, z) + 0.55, z))
+    const x = -halfLength + i * spacing + rng.range(-0.06, 0.06)
+    const lean = new Euler(
+      rng.range(-0.025, 0.025),
+      rng.range(0, Math.PI * 2),
+      rng.range(-0.025, 0.025),
+    )
+    const base = new Vector3(x, terrainHeight(x, z), z)
+    posts.setMatrixAt(
+      i,
+      m.compose(base, q.setFromEuler(lean), new Vector3(1, rng.range(0.96, 1.04), 1)),
+    )
+    tops.push(base)
+  }
+  let r = 0
+  for (let i = 0; i < count - 1; i++) {
+    const a = tops[i]!
+    const b = tops[i + 1]!
+    for (const height of [0.5, 0.98]) {
+      const mid = new Vector3().addVectors(a, b).multiplyScalar(0.5)
+      mid.y += height + rng.range(-0.025, 0.025)
+      mid.z -= 0.09
+      e.set(
+        rng.range(-0.06, 0.06),
+        rng.range(-0.01, 0.01),
+        Math.atan2(b.y - a.y, b.x - a.x) + rng.range(-0.012, 0.012),
+      )
+      rails.setMatrixAt(r++, m.compose(mid, q.setFromEuler(e), new Vector3(1, 1, 1)))
+    }
   }
   posts.castShadow = posts.receiveShadow = true
-  fence.add(posts)
-  for (const height of [0.5, 1.0]) {
-    const rail = new Mesh(new BoxGeometry(halfLength * 2, 0.08, 0.04), wood)
-    rail.position.set(0, height, z)
-    rail.castShadow = true
-    fence.add(rail)
-  }
+  rails.castShadow = rails.receiveShadow = true
+  fence.add(posts, rails)
   return fence
 }

@@ -178,10 +178,12 @@ export interface ModelBinding {
    * glTF nodes that animate. Axes are in each node's local frame. Control
    * keys match telemetry deflections ("aileron.left", "rudder.center").
    * Positive deflection is trailing edge towards -normal (down on wings,
-   * right on the fin), i.e. a right-handed rotation about +hingeAxis.
+   * right on the fin), i.e. a right-handed rotation about +hingeAxis. The
+   * propeller turns right-handed about +axis as propAngle grows; `blades` is
+   * a child of it, shown only at low rpm.
    */
   nodes: {
-    propeller?: { node: string; axis: Vec3Tuple }
+    propeller?: { node: string; axis: Vec3Tuple; blades?: string }
     controls?: Record<string, { node: string; hingeAxis: Vec3Tuple }>
   }
   credit: { title: string; author: string; url: string; license: string }
