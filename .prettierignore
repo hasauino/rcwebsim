@@ -1,0 +1,4 @@
+dist
+public
+src/sim/data/*.json
+package-lock.json
