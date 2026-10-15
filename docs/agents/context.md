@@ -1,0 +1,41 @@
+# Project context: agreed scope, current state, open work
+
+Read when planning new work or judging whether something is in scope. The design was settled with the owner in a structured interview. Decisions that are hard to reverse are in `docs/adr/`. This file records the rest of the agreed scope.
+
+## Agreed scope (v1)
+
+| Area              | Decision                                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fidelity          | High: the plane should fly like a real RC model, not an arcade game. Prefer modelling the physical cause over adding a fudge factor.                               |
+| Aircraft          | One electric high-wing trainer: the FMS 1700 mm PA-18 Super Cub (a taildragger, with flaps), drawn with helijah's CC-BY PA-18 model.                               |
+| Field             | One club field, about 2 km across: mown runway, pilot station, fence, tree lines that collide, gentle hills.                                                       |
+| Platform          | Desktop browsers. Target 60 fps on a mid-range laptop's integrated GPU. No touch controls.                                                                         |
+| Cameras           | Pilot view (default, with auto-zoom) and chase view.                                                                                                               |
+| Input             | Keyboard, plus the Gamepad API, which covers gamepads and USB RC transmitters, with mapping and calibration.                                                       |
+| Transmitter       | Mode 2 default (1–4 selectable), dual rates, expo, trims, throttle hold, 3-position flap switch, optional flap→elevator mix. Saved per aircraft in `localStorage`. |
+| Flight controller | An empty pass-through stage now. AS3X/SAFE-style stabilisation is planned for later.                                                                               |
+| Wind              | Steady wind plus Dryden turbulence. Wind shear, tree turbulence and thermals are planned for later.                                                                |
+| Crashes           | Detect, show a message, reset by key. Planned for later: break-apart, then cumulative damage.                                                                      |
+| Lighting          | A fixed sunny afternoon. The sun direction is one value (`SUN` in `render/sky.ts`) so a time-of-day setting can drive it later.                                    |
+| UI                | Boots straight into the field. Settings overlay plus HUD. No menu flow until there is a second aircraft or field.                                                  |
+| Spawns            | Runway start (default) and air start. No hand launch.                                                                                                              |
+| Recording         | Recorded for tests and download only. No playback UI in v1.                                                                                                        |
+| Audio             | Basic synthesised motor and prop sound.                                                                                                                            |
+| Tooling           | npm, Vite, TS strict, ESLint and Prettier, Vitest, Husky pre-commit (lint-staged, typecheck, tests). Deploys to GitHub Pages from `main`.                          |
+
+The owner tends to accept well-argued recommendations. Bring a recommendation with each question rather than an open menu.
+
+## Current state
+
+- **Headless sim core.** All 25 tests pass: aircraft validation, flight envelope, recording and replay.
+- **Browser app** deployed at https://hassan.umari.dev/rcwebsim/.
+- **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.
+
+## Open work, roughly by value
+
+1. **Animated control surfaces and prop.** The PA-18 export is merged per material. Split the ailerons, flaps, elevator, rudder and prop in Blender with pivots on the hinge lines, re-export, and bind them in `model.nodes`.
+2. **FMS manual citation.** The `FMS_MANUAL` source in `pa18.ts` is a truncated path. Find the full URL.
+3. **Cruise test.** It holds altitude with an autopilot rather than solving for trim, and its bands are wide (cruise 14–23 m/s, roll 60–220°/s). Tighten them once there is better data.
+4. **Gear behaviour while rolling.** Contact flickers when the plane is light on its wheels at speed. It's harmless so far, but watch it when tuning the ground run.
+5. **Real-hardware checks.** Test with a real USB transmitter and a gamepad (mapping defaults assume AETR channel order for radios), and measure fps on a mid-range laptop.
+6. **Later features from the agreed list.** Stabiliser modes, time of day, wind shear and thermals, break-apart crashes, a second aircraft or field, replay UI.

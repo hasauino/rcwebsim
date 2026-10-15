@@ -124,6 +124,12 @@ scripts/.venv/bin/python scripts/gen_polars.py naca0009 src/sim/data/naca0009.js
   --name "NACA 0009" --re 40e3,80e3,150e3,300e3
 ```
 
+## Docs
+
+- [GLOSSARY.md](GLOSSARY.md): domain language (channels, strips, slipstream…).
+- [docs/adr/](docs/adr/): architecture decisions and why.
+- [AGENTS.md](AGENTS.md) and [docs/agents/](docs/agents/): working notes for coding agents, including physics conventions, verification, adding an aircraft, scope and open work.
+
 ## Assets
 
 See [ASSETS.md](ASSETS.md) for credits and licences.
