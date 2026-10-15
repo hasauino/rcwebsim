@@ -1,6 +1,6 @@
 # Verifying changes in the real app, and deploying
 
-Unit tests cover `src/sim/` and the touch-stick logic in `InputDevices`. Anything visual, any other input, and audio have to be checked in a browser.
+Unit tests cover `src/sim/`, the touch-stick and walk-mode logic in `InputDevices`, and the walking `Pilot`. Anything visual, any other input, and audio have to be checked in a browser.
 
 ## Driving the app in a browser
 

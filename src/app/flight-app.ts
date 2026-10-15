@@ -3,6 +3,7 @@ import { MotorSound } from '../audio/motor'
 import { InputDevices, defaultGamepadProfile, type GamepadProfile } from '../input/devices'
 import { mixChannels, neutralSticks, type TransmitterSettings } from '../input/transmitter'
 import { pa18 } from '../sim/aircraft/pa18'
+import { treeLayout } from '../sim/field'
 import { FlightRecorder, type FlightRecording } from '../sim/recording'
 import {
   createSimulation,
@@ -14,6 +15,7 @@ import {
 import type { useFlight } from '../stores/flight'
 import { cgFor, type Settings } from '../stores/settings'
 import { World3D } from '../render/world'
+import { Pilot } from './pilot'
 import { FixedStepRunner } from './runner'
 
 type FlightStore = ReturnType<typeof useFlight>
@@ -38,6 +40,7 @@ export class FlightApp {
   input!: InputDevices
   private recorder!: FlightRecorder
   private readonly sound = new MotorSound()
+  private readonly pilot = new Pilot(treeLayout())
   private readonly transmitterState = neutralSticks()
   private paused = false
   private lastFrame = 0
@@ -88,6 +91,11 @@ export class FlightApp {
         camera: () => this.cycleCamera(),
         pause: () => this.togglePause(),
         debug: () => (this.settings.debug.overlay = !this.settings.debug.overlay),
+        // Walking is about where the pilot watches from, so it shows the pilot view.
+        walkMode: (walking) => {
+          if (walking) this.settings.camera.mode = 'pilot'
+        },
+        pilotStation: () => this.pilot.returnToStation(),
         trim: (channel, step) => {
           const c = this.transmitter().channels[channel]
           c.trim = Math.max(-0.25, Math.min(0.25, c.trim + step))
@@ -189,6 +197,9 @@ export class FlightApp {
 
     this.input.update(dt)
     this.channels = mixChannels(this.transmitter(), this.transmitterState)
+    // Leaving the pilot view, by key or in settings, ends walk mode.
+    if (this.settings.camera.mode !== 'pilot') this.input.walking = false
+    if (this.input.walking) this.pilot.walk(dt, this.input.walk, this.world.facing())
 
     let alpha = 1
     if (!this.paused) {
@@ -201,6 +212,7 @@ export class FlightApp {
     const s = this.settings
     this.world.render(dt, position, quaternion, t, {
       camera: s.camera.mode,
+      eye: this.pilot.eye,
       autoZoom: s.camera.autoZoom,
       fov: s.camera.fov,
       debugOverlay: s.debug.overlay,
@@ -229,6 +241,7 @@ export class FlightApp {
     f.rawAxes = this.input.rawAxes
     f.rawButtons = this.input.rawButtons
     f.lastInput = this.input.lastInput
+    f.walking = this.input.walking
     const point = {
       t: this.sim.state().time,
       airspeed: t.airspeed,

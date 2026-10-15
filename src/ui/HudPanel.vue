@@ -84,7 +84,7 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
         {{ windArrow.speed.toFixed(1) }} m/s
       </div>
       <span class="chip panel">{{
-        settings.camera.mode === 'pilot' ? 'Pilot view' : 'Chase view'
+        flight.walking ? 'Walking' : settings.camera.mode === 'pilot' ? 'Pilot view' : 'Chase view'
       }}</span>
       <button
         v-if="fullscreen !== null"
@@ -113,6 +113,10 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       <div>
         <kbd>R</kbd> runway · <kbd>T</kbd> air start · <kbd>C</kbd> camera · <kbd>V</kbd> full
         screen
+      </div>
+      <div>
+        <kbd>Q</kbd> walk mode: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk,
+        <kbd>Shift</kbd> run · <kbd>B</kbd> back to pilot station
       </div>
       <div>
         <kbd>P</kbd> pause · <kbd>G</kbd> aero overlay · <kbd>Esc</kbd> settings · <kbd>/</kbd> hide

@@ -8,8 +8,8 @@ const desired = new Vector3()
 const target = new Vector3()
 
 /**
- * Pilot's-eye view from the pilot station (the default: this is how RC is
- * flown) with optional auto-zoom, plus a chase camera that follows the
+ * Pilot's-eye view (the default: this is how RC is flown) from wherever the
+ * pilot stands, with optional auto-zoom, plus a chase camera that follows the
  * aircraft's heading but not its roll.
  */
 export class CameraRig {
@@ -19,6 +19,8 @@ export class CameraRig {
   baseFov = 50
   /** Approximate aircraft size, for auto-zoom framing. */
   span = 1.7
+  /** The pilot's eye, for the pilot view. */
+  readonly eye = new Vector3(FIELD.pilotStation.x, FIELD.pilotStation.y, FIELD.pilotStation.z)
 
   private readonly look = new Vector3()
   private readonly chasePosition = new Vector3()
@@ -26,8 +28,7 @@ export class CameraRig {
 
   constructor(aspect: number) {
     this.camera = new PerspectiveCamera(this.baseFov, aspect, 0.05, 60000)
-    const p = FIELD.pilotStation
-    this.camera.position.set(p.x, p.y, p.z)
+    this.camera.position.copy(this.eye)
   }
 
   update(dt: number, position: Vector3, quaternion: Quaternion): void {
@@ -40,8 +41,7 @@ export class CameraRig {
     }
 
     if (this.mode === 'pilot') {
-      const p = FIELD.pilotStation
-      cam.position.set(p.x, p.y, p.z)
+      cam.position.copy(this.eye)
       this.look.lerp(position, smoothing)
       cam.lookAt(this.look)
       // Keep the model a readable size on screen: it spans ~1/6 of the view.

@@ -13,8 +13,12 @@ The fixed spot beside the runway where the pilot stands and flies by line of sig
 _Avoid_: spawn point, camera position
 
 **Pilot view**:
-Looking at the aircraft from the pilot station; the default way to fly.
+Looking at the aircraft from where the pilot stands, the pilot station unless they have walked off; the default way to fly.
 _Avoid_: ground camera, tower view
+
+**Walk mode**:
+The pilot walking the field on foot to watch from somewhere else, while the aircraft keeps flying. It moves the pilot view, never the flight.
+_Avoid_: free camera, fly-cam
 
 **Chase view**:
 A camera following behind the aircraft.

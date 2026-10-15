@@ -26,6 +26,8 @@ export const useFlight = defineStore('flight', () => {
   const rawAxes = shallowRef<number[]>([])
   const rawButtons = shallowRef<boolean[]>([])
   const lastInput = ref<InputSource | null>(null)
+  /** Walk mode: the keyboard walks the pilot round the field. */
+  const walking = ref(false)
   /** Rolling history for the debug graphs. */
   const history = shallowRef<HistoryPoint[]>([])
 
@@ -42,6 +44,7 @@ export const useFlight = defineStore('flight', () => {
     rawAxes,
     rawButtons,
     lastInput,
+    walking,
     history,
   }
 })

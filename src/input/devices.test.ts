@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { InputDevices, defaultGamepadProfile } from './devices'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { InputDevices, defaultGamepadProfile, type InputEvents } from './devices'
 import { MODE_LAYOUT, type StickMode, type TransmitterState } from './transmitter'
 
 const FRAME = 1 / 60
@@ -18,7 +18,7 @@ function fakeWindow(devices: InputDevices) {
 }
 
 /** A transmitter at rest: sticks centred, throttle at idle. */
-function transmitter(mode: StickMode) {
+function transmitter(mode: StickMode, events: InputEvents = {}) {
   const state: TransmitterState = {
     sticks: { leftX: 0, leftY: 0, rightX: 0, rightY: 0 },
     highRates: true,
@@ -30,7 +30,7 @@ function transmitter(mode: StickMode) {
     state,
     () => mode,
     (pad) => defaultGamepadProfile(pad, mode),
-    {},
+    events,
   )
   return { state, devices }
 }
@@ -174,4 +174,92 @@ describe('touch sticks', () => {
     devices.update(FRAME)
     expect(state.sticks.leftY).toBeCloseTo(-0.5)
   })
+})
+
+describe('walk mode', () => {
+  it('walks the pilot with W instead of opening the throttle once Q is pressed', () => {
+    const { state, devices } = transmitter(2)
+    const win = fakeWindow(devices)
+    win.keyDown('KeyQ')
+    expect(devices.walking).toBe(true)
+
+    win.keyDown('KeyW')
+    devices.update(1)
+    expect(devices.walk.forward).toBe(1)
+    expect(state.sticks.leftY).toBe(1)
+  })
+
+  it('sidesteps with A and D while the arrow keys still fly', () => {
+    const { state, devices } = transmitter(2)
+    const win = fakeWindow(devices)
+    win.keyDown('KeyQ')
+    win.keyDown('KeyA')
+    win.keyDown('ArrowRight')
+    devices.update(1)
+    expect(devices.walk.right).toBe(-1)
+    // Mode 2: rudder is left stick horizontal, aileron right stick horizontal.
+    expect(state.sticks.leftX).toBe(0)
+    expect(state.sticks.rightX).toBe(1)
+  })
+
+  it('keeps flying on a gamepad while the keyboard walks', () => {
+    const pad = {
+      id: 'pad',
+      connected: true,
+      mapping: 'standard',
+      axes: [0, 0, 0.8, 0],
+      buttons: [],
+    } as unknown as Gamepad
+    vi.stubGlobal('navigator', { getGamepads: () => [pad] })
+    const { state, devices } = transmitter(2)
+    const win = fakeWindow(devices)
+    devices.update(FRAME)
+    win.keyDown('KeyQ')
+    win.keyDown('KeyW')
+    devices.update(FRAME)
+    expect(state.sticks.rightX).toBeCloseTo(0.8)
+    expect(devices.walk.forward).toBe(1)
+  })
+
+  it('runs while Shift is held', () => {
+    const { devices } = transmitter(2)
+    const win = fakeWindow(devices)
+    win.keyDown('KeyQ')
+    win.keyDown('KeyW')
+    devices.update(FRAME)
+    expect(devices.walk.running).toBe(false)
+    win.keyDown('ShiftLeft')
+    devices.update(FRAME)
+    expect(devices.walk.running).toBe(true)
+  })
+
+  it('keeps full stick travel on the arrow keys while running', () => {
+    const { state, devices } = transmitter(2)
+    const win = fakeWindow(devices)
+    win.keyDown('KeyQ')
+    win.keyDown('ShiftLeft')
+    win.keyDown('ArrowRight')
+    devices.update(1)
+    expect(state.sticks.rightX).toBe(1)
+  })
+
+  it('tells the app when walk mode starts and stops', () => {
+    const walkMode = vi.fn()
+    const { devices } = transmitter(2, { walkMode })
+    const win = fakeWindow(devices)
+    win.keyDown('KeyQ')
+    win.keyUp('KeyQ')
+    win.keyDown('KeyQ')
+    expect(walkMode.mock.calls).toEqual([[true], [false]])
+    expect(devices.walking).toBe(false)
+  })
+
+  it('sends the pilot back to the pilot station with B', () => {
+    const pilotStation = vi.fn()
+    const { devices } = transmitter(2, { pilotStation })
+    fakeWindow(devices).keyDown('KeyB')
+    expect(pilotStation).toHaveBeenCalledOnce()
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
 })

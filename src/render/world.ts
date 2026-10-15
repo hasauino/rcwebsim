@@ -9,7 +9,7 @@ import {
 } from 'three'
 import { WebGPURenderer } from 'three/webgpu'
 import type { AircraftSpec } from '../sim/aircraft/types'
-import type { Simulation, Telemetry } from '../sim/simulation'
+import type { Simulation, Telemetry, Vec3Like } from '../sim/simulation'
 import { AircraftView } from './aircraft'
 import { CameraRig, type CameraMode } from './cameras'
 import { DebugOverlay } from './debug'
@@ -28,6 +28,8 @@ const QUALITY: Record<Quality, { pixelRatio: number; terrain: number; grass: num
 
 export interface ViewOptions {
   camera: CameraMode
+  /** Where the pilot's eyes are, world frame. */
+  eye: Vec3Like
   autoZoom: boolean
   fov: number
   debugOverlay: boolean
@@ -36,6 +38,7 @@ export interface ViewOptions {
 }
 
 const right = new Vector3()
+const facing = new Vector3()
 
 /** Owns the renderer, the scene and everything in it. */
 export class World3D {
@@ -117,10 +120,16 @@ export class World3D {
 
     const rig = this.cameras
     rig.mode = view.camera
+    rig.eye.set(view.eye.x, view.eye.y, view.eye.z)
     rig.autoZoom = view.autoZoom
     rig.baseFov = view.fov
     rig.update(dt, position, quaternion)
     void this.renderer.render(this.scene, rig.camera)
+  }
+
+  /** The way the camera looks, for walking the pilot. */
+  facing(): Vector3 {
+    return this.cameras.camera.getWorldDirection(facing)
   }
 
   /** Camera position and right vector, for spatial audio. */

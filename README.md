@@ -21,10 +21,14 @@ Built with Vue, three.js (WebGPU) and Rapier, plus a custom aerodynamics model, 
 | `F`       | Flaps                       |
 | `R` / `T` | Reset on runway / air start |
 | `C`       | Pilot / chase camera        |
+| `Q`       | Walk mode on / off          |
+| `B`       | Back to the pilot station   |
 | `V`       | Full screen                 |
 | `Esc`     | Settings                    |
 
 In full screen, Chrome and Edge keep `Esc` for Settings: hold it to leave full screen. Firefox and Safari leave full screen on `Esc`.
+
+In walk mode, `W` `A` `S` `D` walk you round the field to watch from somewhere else (hold `Shift` to run) instead of flying throttle and rudder. The throttle stays where you left it, the arrow keys still fly aileron and elevator, and a gamepad or transmitter still flies everything.
 
 Gamepads and USB RC transmitters work too. Set them up in Settings → Controls.
 

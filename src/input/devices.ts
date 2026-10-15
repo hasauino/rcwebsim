@@ -81,9 +81,21 @@ const KEY_AXES: Record<string, [KeyChannel, number]> = {
   KeyD: ['rudder', 1],
 }
 
+/** Keys that walk the pilot in walk mode; otherwise they fly throttle and rudder. */
+const WALK_KEYS = new Set(['KeyW', 'KeyS', 'KeyA', 'KeyD'])
+
 /** Stick travel per second for keyboard "sticks" and throttle. */
 const KEY_STICK_RATE = 4
 const THROTTLE_RATE = 0.6
+
+/** The keys walking the pilot in walk mode. */
+export interface WalkKeys {
+  /** -1..1: ahead (+) or back. */
+  forward: number
+  /** -1..1: right (+) or left. */
+  right: number
+  running: boolean
+}
 
 export type TrimChannel = 'aileron' | 'elevator' | 'rudder'
 
@@ -93,6 +105,10 @@ export interface InputEvents {
   camera?: () => void
   pause?: () => void
   debug?: () => void
+  /** Walk mode turned on or off. */
+  walkMode?: (walking: boolean) => void
+  /** Walk the pilot back to the pilot station. */
+  pilotStation?: () => void
   /** Nudge a channel's trim by `step` (fraction of full travel). */
   trim?: (channel: TrimChannel, step: number) => void
 }
@@ -138,6 +154,10 @@ export class InputDevices {
   rawButtons: boolean[] = []
   /** The device last used to fly (stick keys, a touch, gamepad sticks or buttons), or null before any. */
   lastInput: InputSource | null = null
+  /** Walk mode: W/A/S/D walk the pilot instead of flying throttle and rudder. */
+  walking = false
+  /** The pilot's walking keys, while in walk mode. */
+  readonly walk: WalkKeys = { forward: 0, right: 0, running: false }
 
   private readonly held = new Set<string>()
   private keyStick: Record<KeyChannel, number> = { aileron: 0, elevator: 0, rudder: 0 }
@@ -162,7 +182,7 @@ export class InputDevices {
   attach(target: Window): () => void {
     const down = (e: KeyboardEvent) => {
       if (isTyping(e)) return
-      if (e.code in KEY_AXES || e.code === 'KeyW' || e.code === 'KeyS') {
+      if (this.fliesWith(e.code)) {
         e.preventDefault()
         this.lastInput = 'keyboard'
       }
@@ -191,21 +211,33 @@ export class InputDevices {
     const layout = MODE_LAYOUT[this.getMode()]
     const pad = this.pollGamepad(dt)
 
+    const shift = this.held.has('ShiftLeft') || this.held.has('ShiftRight')
+    const walk = this.walk
+    walk.forward = walk.right = 0
+    walk.running = this.walking && shift
+    if (this.walking) {
+      walk.forward = +this.held.has('KeyW') - +this.held.has('KeyS')
+      walk.right = +this.held.has('KeyD') - +this.held.has('KeyA')
+    }
+
     // Keyboard sticks spring back to centre like a real gimbal.
-    const keysActive = [...this.held].some((k) => k in KEY_AXES || k === 'KeyW' || k === 'KeyS')
+    const keysActive = [...this.held].some((k) => this.fliesWith(k))
     for (const channel of ['aileron', 'elevator', 'rudder'] as const) {
       let target = 0
       for (const code of this.held) {
         const binding = KEY_AXES[code]
-        if (binding && binding[0] === channel) target += binding[1]
+        if (binding && binding[0] === channel && this.fliesWith(code)) target += binding[1]
       }
-      if (this.held.has('ShiftLeft') || this.held.has('ShiftRight')) target *= 0.4
+      // In walk mode Shift runs instead.
+      if (shift && !this.walking) target *= 0.4
       const v = this.keyStick[channel]
       this.keyStick[channel] =
         v + Math.max(-KEY_STICK_RATE * dt, Math.min(KEY_STICK_RATE * dt, target - v))
     }
-    if (this.held.has('KeyW')) this.throttle = Math.min(1, this.throttle + THROTTLE_RATE * dt)
-    if (this.held.has('KeyS')) this.throttle = Math.max(0, this.throttle - THROTTLE_RATE * dt)
+    if (this.held.has('KeyW') && this.fliesWith('KeyW'))
+      this.throttle = Math.min(1, this.throttle + THROTTLE_RATE * dt)
+    if (this.held.has('KeyS') && this.fliesWith('KeyS'))
+      this.throttle = Math.max(0, this.throttle - THROTTLE_RATE * dt)
 
     const sticks = this.state.sticks
     const touched = Object.keys(this.touches) as StickSide[]
@@ -235,6 +267,12 @@ export class InputDevices {
       sticks[layout[channel]] = this.keyStick[channel]
     }
     sticks[layout.throttle] = 1 - 2 * this.throttle
+  }
+
+  /** Whether a key flies the aircraft (stick or throttle), as opposed to walking or a switch. */
+  private fliesWith(code: string): boolean {
+    if (this.walking && WALK_KEYS.has(code)) return false
+    return code in KEY_AXES || code === 'KeyW' || code === 'KeyS'
   }
 
   private syncThrottleFromSticks(gimbal: Gimbal): void {
@@ -349,6 +387,13 @@ export class InputDevices {
         break
       case 'KeyG':
         this.events.debug?.()
+        break
+      case 'KeyQ':
+        this.walking = !this.walking
+        this.events.walkMode?.(this.walking)
+        break
+      case 'KeyB':
+        this.events.pilotStation?.()
         break
     }
   }

@@ -10,7 +10,7 @@ Read when planning new work or judging whether something is in scope. The design
 | Aircraft          | One electric high-wing trainer: the FMS 1700 mm PA-18 Super Cub (a taildragger, with flaps), drawn with helijah's CC-BY PA-18 model.                               |
 | Field             | One club field, about 2 km across: mown runway, pilot station, fence, tree lines that collide, gentle hills.                                                       |
 | Platform          | Desktop browsers first; phones and tablets fly with on-screen touch sticks. Target 60 fps on a mid-range laptop's integrated GPU.                                  |
-| Cameras           | Pilot view (default, with auto-zoom) and chase view.                                                                                                               |
+| Cameras           | Pilot view (default, with auto-zoom) and chase view. Walk mode moves the pilot round the field by keyboard; touch walking is not built.                            |
 | Input             | Keyboard, touch sticks, and the Gamepad API, which covers gamepads and USB RC transmitters, with mapping and calibration.                                          |
 | Transmitter       | Mode 2 default (1–4 selectable), dual rates, expo, trims, throttle hold, 3-position flap switch, optional flap→elevator mix. Saved per aircraft in `localStorage`. |
 | Flight controller | An empty pass-through stage now. AS3X/SAFE-style stabilisation is planned for later.                                                                               |
