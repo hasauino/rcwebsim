@@ -9,7 +9,7 @@ Unit tests cover only `src/sim/`. Anything visual, input-related or audio-relate
    `chromium.launch({ channel: 'chrome', headless: true, args: ['--enable-unsafe-webgpu', '--use-angle=metal'] })`.
    Headless Chrome on macOS runs the real WebGPU backend this way.
 3. **Wait until the app is ready.** Dev builds expose the running app as `window.rcfsim` (a `FlightApp`). Wait for `window.rcfsim?.world` and for `.spinner` to disappear. Then read live state with `page.evaluate(() => window.rcfsim.sim.telemetry())` and check renderer state with `window.rcfsim.world.usingWebGPU`.
-4. **Fly it.** Use keyboard input (`page.keyboard.down('KeyW')`, etc.; keys are listed in the README), take screenshots, and look at them. Collect `console` errors, `pageerror` events and failed responses. A clean run has none.
+4. **Fly it.** Use keyboard input (`page.keyboard.down('KeyW')`, etc.; the full key list is the help card in `src/ui/HudPanel.vue`), take screenshots, and look at them. Collect `console` errors, `pageerror` events and failed responses. A clean run has none.
 
 Hands-off at full power the plane climbs steeply. That is expected, because neutral elevator is trimmed for about 12.5 m/s. Scripted pull-ups at full power loop it into the ground, and that is pilot error, not a regression.
 

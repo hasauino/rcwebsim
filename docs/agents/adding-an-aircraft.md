@@ -3,7 +3,7 @@
 An aircraft is one `AircraftSpec` file in `src/sim/aircraft/`. `pa18.ts` is the worked example, and its `provenance` notes show what is sourced, derived, estimated and tuned.
 
 1. **Gather sources.** Collect the manual's span, wing area, flying weight, CG, throws, motor, ESC, battery and prop, and record each as `sourced` with a link. Look up the airfoil coordinates in the UIUC database.
-2. **Polars.** If the airfoil has no table in `src/sim/data/`, generate one with `scripts/gen_polars.py` (see the README), add it to `AirfoilId` and register it in `airfoil.ts`. Tail surfaces get a symmetric section.
+2. **Polars.** If the airfoil has no table in `src/sim/data/`, generate one with `scripts/gen_polars.py` (see `docs/polars.md`), add it to `AirfoilId` and register it in `airfoil.ts`. Tail surfaces get a symmetric section.
 3. **Geometry from the visual model.**
    - Measure the glTF's vertices (wing leading edge, chord, wheel contact points, tail surfaces, spinner) and scale the model to the real span.
    - Set `model.scale`, `rotationDeg` and `offset` so its wing root leading edge lands on the datum, nose to −z, right wing to +x.

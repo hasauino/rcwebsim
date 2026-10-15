@@ -224,7 +224,7 @@ export const pa18: AircraftSpec = {
     // helijah's full-scale PA-18 (10.72 m span, Z-up, nose -X) scaled to 1.7 m
     // and turned nose-forward; offset puts its wing root leading edge on the
     // datum. The export is merged per material, so no control surface or
-    // propeller node can be animated until it is split (see README).
+    // propeller node can be animated until it is split (see docs/adr/0010).
     url: 'models/pa18/scene.gltf',
     scale: 0.1586,
     rotationDeg: [0, -90, 0],
