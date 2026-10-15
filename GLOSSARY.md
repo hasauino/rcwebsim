@@ -44,6 +44,10 @@ _Avoid_: controller, remote
 One stick axis on the transmitter (left/right stick, horizontal/vertical).
 _Avoid_: axis, joystick axis
 
+**Touch sticks**:
+On-screen pads that stand in for the transmitter's gimbals on a touch screen; the throttle gimbal stays where the thumb leaves it.
+_Avoid_: virtual joystick
+
 **Stick mode**:
 Which gimbal drives which channel; Mode 2 puts throttle and rudder on the left stick.
 

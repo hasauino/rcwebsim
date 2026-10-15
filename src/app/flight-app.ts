@@ -34,7 +34,8 @@ export class FlightApp {
   sim!: Simulation
   world!: World3D
   private runner!: FixedStepRunner
-  private devices!: InputDevices
+  /** Keyboard, gamepad and on-screen touch sticks. */
+  input!: InputDevices
   private recorder!: FlightRecorder
   private readonly sound = new MotorSound()
   private readonly transmitterState = neutralSticks()
@@ -76,7 +77,7 @@ export class FlightApp {
     this.flight.modelMissing = !found
     this.flight.renderer = this.world.usingWebGPU ? 'WebGPU' : 'WebGL 2'
 
-    this.devices = new InputDevices(
+    this.input = new InputDevices(
       this.transmitterState,
       () => this.transmitter().mode,
       (pad) => this.gamepadProfile(pad),
@@ -92,8 +93,11 @@ export class FlightApp {
         },
       },
     )
-    this.detach = this.devices.attach(window)
+    this.detach = this.input.attach(window)
+    // A touch only counts as a user gesture for audio when the finger lifts.
     window.addEventListener('pointerdown', this.unlockAudio)
+    window.addEventListener('pointerup', this.unlockAudio)
+    window.addEventListener('touchend', this.unlockAudio)
     window.addEventListener('keydown', this.unlockAudio)
 
     this.resizeObserver = new ResizeObserver(() => this.world.resize())
@@ -111,7 +115,7 @@ export class FlightApp {
     this.world.cameras.snap()
     // Idle on the runway; circuit power for an air start. (A transmitter's
     // non-centring throttle stick overrides this as soon as it is read.)
-    this.devices.setThrottle(spawn.kind === 'air' ? 0.5 : 0)
+    this.input.setThrottle(spawn.kind === 'air' ? 0.5 : 0)
     if (spawn.kind === 'air') this.transmitterState.throttleHold = false
     this.newRecording()
   }
@@ -143,6 +147,8 @@ export class FlightApp {
   dispose(): void {
     this.disposed = true
     window.removeEventListener('pointerdown', this.unlockAudio)
+    window.removeEventListener('pointerup', this.unlockAudio)
+    window.removeEventListener('touchend', this.unlockAudio)
     window.removeEventListener('keydown', this.unlockAudio)
     this.detach?.()
     this.resizeObserver?.disconnect()
@@ -172,7 +178,7 @@ export class FlightApp {
     const dt = this.lastFrame ? Math.min((time - this.lastFrame) / 1000, 0.1) : 1 / 60
     this.lastFrame = time
 
-    this.devices.update(dt)
+    this.input.update(dt)
     this.channels = mixChannels(this.transmitter(), this.transmitterState)
 
     let alpha = 1
@@ -210,9 +216,10 @@ export class FlightApp {
       ...this.transmitterState,
       sticks: { ...this.transmitterState.sticks },
     }
-    f.activePad = this.devices.activePad
-    f.rawAxes = this.devices.rawAxes
-    f.rawButtons = this.devices.rawButtons
+    f.activePad = this.input.activePad
+    f.rawAxes = this.input.rawAxes
+    f.rawButtons = this.input.rawButtons
+    f.lastInput = this.input.lastInput
     const point = {
       t: this.sim.state().time,
       airspeed: t.airspeed,

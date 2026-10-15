@@ -79,6 +79,15 @@ watch(rawButtons, (buttons, previous) => {
 
 <template>
   <div class="controls">
+    <label class="row">
+      <span>On-screen touch sticks</span>
+      <select v-model="settings.controls.touch">
+        <option value="auto">Auto (on touch screens)</option>
+        <option value="on">Always</option>
+        <option value="off">Never</option>
+      </select>
+    </label>
+
     <div class="device">
       <span class="dot" :class="{ on: activePad }" />
       <span v-if="activePad">{{ activePad }}</span>
@@ -161,6 +170,15 @@ watch(rawButtons, (buttons, previous) => {
         Arrows: aileron and elevator · A/D: rudder · W/S: throttle · hold Shift for fine control · F
         flaps · E rates · H throttle hold · trims I/K elevator, J/L aileron, U/O rudder · R reset ·
         T air start · C camera · P pause · G aero overlay.
+      </p>
+    </details>
+
+    <details>
+      <summary>Touch</summary>
+      <p class="muted">
+        Put a thumb anywhere on a stick pad: that spot is centre. The throttle stays where you leave
+        it and moves on from there; the other sticks spring back when you lift your thumb. Which pad
+        flies what follows the stick mode on the Transmitter tab.
       </p>
     </details>
   </div>

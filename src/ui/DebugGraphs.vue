@@ -78,6 +78,18 @@ watch(history, draw)
   height: 240px;
   padding: 6px;
 }
+/* With touch sticks the gauges take the top-left corner. */
+.graphs.touch {
+  left: auto;
+  right: 16px;
+  top: 64px;
+  height: 130px;
+}
+@media (orientation: portrait) {
+  .graphs.touch {
+    top: 200px;
+  }
+}
 canvas {
   width: 100%;
   height: 100%;

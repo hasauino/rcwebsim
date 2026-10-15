@@ -100,6 +100,22 @@ export interface InputEvents {
 /** One click of a transmitter trim button. */
 const TRIM_STEP = 0.005
 
+export type StickSide = 'left' | 'right'
+export type InputSource = 'keyboard' | 'gamepad' | 'touch'
+
+const SIDE_GIMBALS: Record<StickSide, { x: Gimbal; y: Gimbal }> = {
+  left: { x: 'leftX', y: 'leftY' },
+  right: { x: 'rightX', y: 'rightY' },
+}
+
+/** A thumb on a touch stick; travel is in fractions of full stick throw. */
+interface HeldTouch {
+  x: number
+  y: number
+  /** Throttle (0..1) when the finger landed; a throttle gimbal moves on from it. */
+  throttle: number
+}
+
 const TRIM_KEYS: Record<string, [TrimChannel, number]> = {
   KeyI: ['elevator', -TRIM_STEP],
   KeyK: ['elevator', TRIM_STEP],
@@ -110,8 +126,8 @@ const TRIM_KEYS: Record<string, [TrimChannel, number]> = {
 }
 
 /**
- * Reads the keyboard and the first connected gamepad and maintains the
- * virtual transmitter's stick/switch state.
+ * Reads the keyboard, the touch sticks and the first connected gamepad and
+ * maintains the virtual transmitter's stick/switch state.
  */
 export class InputDevices {
   readonly state: TransmitterState
@@ -120,12 +136,15 @@ export class InputDevices {
   /** Live raw axis values and button states of the active pad, for the mapping UI. */
   rawAxes: number[] = []
   rawButtons: boolean[] = []
+  /** The device last used to fly (stick keys, a touch, gamepad sticks or buttons), or null before any. */
+  lastInput: InputSource | null = null
 
   private readonly held = new Set<string>()
   private keyStick: Record<KeyChannel, number> = { aileron: 0, elevator: 0, rudder: 0 }
   private throttle = 0
   private lastButtons: boolean[] = []
   private padTouched = false
+  private readonly touches: Partial<Record<StickSide, HeldTouch>> = {}
 
   constructor(
     state: TransmitterState,
@@ -143,19 +162,27 @@ export class InputDevices {
   attach(target: Window): () => void {
     const down = (e: KeyboardEvent) => {
       if (isTyping(e)) return
-      if (e.code in KEY_AXES || e.code === 'KeyW' || e.code === 'KeyS') e.preventDefault()
+      if (e.code in KEY_AXES || e.code === 'KeyW' || e.code === 'KeyS') {
+        e.preventDefault()
+        this.lastInput = 'keyboard'
+      }
       if (!e.repeat) this.onKey(e.code)
       this.held.add(e.code)
     }
     const up = (e: KeyboardEvent) => this.held.delete(e.code)
     const blur = () => this.held.clear()
+    const pointer = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') this.lastInput = 'touch'
+    }
     target.addEventListener('keydown', down)
     target.addEventListener('keyup', up)
     target.addEventListener('blur', blur)
+    target.addEventListener('pointerdown', pointer)
     return () => {
       target.removeEventListener('keydown', down)
       target.removeEventListener('keyup', up)
       target.removeEventListener('blur', blur)
+      target.removeEventListener('pointerdown', pointer)
     }
   }
 
@@ -180,12 +207,30 @@ export class InputDevices {
     if (this.held.has('KeyW')) this.throttle = Math.min(1, this.throttle + THROTTLE_RATE * dt)
     if (this.held.has('KeyS')) this.throttle = Math.max(0, this.throttle - THROTTLE_RATE * dt)
 
+    const sticks = this.state.sticks
+    const touched = Object.keys(this.touches) as StickSide[]
+    if (touched.length) {
+      // Touch flies: untouched gimbals rest at centre, throttle where it was left.
+      for (const g of GIMBALS) sticks[g] = 0
+      for (const side of touched) {
+        const touch = this.touches[side]!
+        const { x, y } = SIDE_GIMBALS[side]
+        sticks[x] = clampTravel(touch.x)
+        if (y === layout.throttle) {
+          this.throttle = Math.max(0, Math.min(1, touch.throttle - touch.y / 2))
+        } else {
+          sticks[y] = clampTravel(touch.y)
+        }
+      }
+      sticks[layout.throttle] = 1 - 2 * this.throttle
+      return
+    }
+
     if (pad && !keysActive) {
       Object.assign(this.state.sticks, pad)
       this.syncThrottleFromSticks(layout.throttle)
       return
     }
-    const sticks = this.state.sticks
     for (const channel of ['aileron', 'elevator', 'rudder'] as const) {
       sticks[layout[channel]] = this.keyStick[channel]
     }
@@ -228,21 +273,50 @@ export class InputDevices {
     const pressed = pad.buttons.map((b) => b.pressed)
     this.rawButtons = pressed
     for (const [action, index] of Object.entries(profile.buttons) as [SwitchAction, number][]) {
-      if (pressed[index] && !this.lastButtons[index]) this.onSwitch(action)
+      if (pressed[index] && !this.lastButtons[index]) {
+        this.lastInput = 'gamepad'
+        this.pressSwitch(action)
+      }
     }
     this.lastButtons = pressed
+    const moved = GIMBALS.some((g) => g !== layout.throttle && Math.abs(out[g]) > 0.2)
+    if (moved) this.lastInput = 'gamepad'
 
     // Only take over from the keyboard once the pad is actually used.
     if (!this.padTouched) {
-      this.padTouched = GIMBALS.some((g) => g !== layout.throttle && Math.abs(out[g]) > 0.2)
+      this.padTouched = moved
       if (!this.padTouched) return null
     }
     return out
   }
 
-  /** Sets the keyboard / self-centring-gamepad throttle (0..1). */
+  /** A thumb lands on a touch stick: that spot is the stick's centre. */
+  touchDown(side: StickSide): void {
+    this.touches[side] = { x: 0, y: 0, throttle: this.throttle }
+    this.lastInput = 'touch'
+  }
+
+  /**
+   * The finger has moved `dx`, `dy` from where it landed, in fractions of
+   * full stick travel (+x right, +y towards the pilot).
+   */
+  touchMove(side: StickSide, dx: number, dy: number): void {
+    const touch = this.touches[side]
+    if (!touch) return
+    touch.x = dx
+    touch.y = dy
+  }
+
+  /** The finger lifts: centring gimbals spring back. */
+  touchUp(side: StickSide): void {
+    delete this.touches[side]
+  }
+
+  /** Sets the keyboard / self-centring-gamepad / touch throttle (0..1). */
   setThrottle(value: number): void {
     this.throttle = Math.max(0, Math.min(1, value))
+    // A thumb held on the throttle moves on from the new setting.
+    for (const touch of Object.values(this.touches)) touch.throttle = this.throttle + touch.y / 2
   }
 
   private onKey(code: string): void {
@@ -253,22 +327,22 @@ export class InputDevices {
     }
     switch (code) {
       case 'KeyF':
-        this.onSwitch('flaps')
+        this.pressSwitch('flaps')
         break
       case 'KeyE':
-        this.onSwitch('rates')
+        this.pressSwitch('rates')
         break
       case 'KeyH':
-        this.onSwitch('throttleHold')
+        this.pressSwitch('throttleHold')
         break
       case 'KeyR':
-        this.onSwitch('reset')
+        this.pressSwitch('reset')
         break
       case 'KeyT':
         this.events.airStart?.()
         break
       case 'KeyC':
-        this.onSwitch('camera')
+        this.pressSwitch('camera')
         break
       case 'KeyP':
         this.events.pause?.()
@@ -279,7 +353,8 @@ export class InputDevices {
     }
   }
 
-  private onSwitch(action: SwitchAction): void {
+  /** Flips a transmitter switch, or fires a reset or camera action. */
+  pressSwitch(action: SwitchAction): void {
     const s = this.state
     if (action === 'flaps') s.flapSwitch = ((s.flapSwitch + 1) % 3) as 0 | 1 | 2
     else if (action === 'rates') s.highRates = !s.highRates
@@ -288,6 +363,8 @@ export class InputDevices {
     else if (action === 'camera') this.events.camera?.()
   }
 }
+
+const clampTravel = (v: number) => Math.max(-1, Math.min(1, v))
 
 export function isTyping(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null

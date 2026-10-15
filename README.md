@@ -28,6 +28,8 @@ In full screen, Chrome and Edge keep `Esc` for Settings: hold it to leave full s
 
 Gamepads and USB RC transmitters work too. Set them up in Settings → Controls.
 
+On a phone or tablet, fly with the on-screen touch sticks. Wherever your thumb lands on a pad is centre. The throttle stays where you leave it. Settings → Controls can show them always or never.
+
 Tip: it's a taildragger, so hold a little right rudder on the takeoff roll.
 
 ## Run locally

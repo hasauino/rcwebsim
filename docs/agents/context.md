@@ -9,9 +9,9 @@ Read when planning new work or judging whether something is in scope. The design
 | Fidelity          | High: the plane should fly like a real RC model, not an arcade game. Prefer modelling the physical cause over adding a fudge factor.                               |
 | Aircraft          | One electric high-wing trainer: the FMS 1700 mm PA-18 Super Cub (a taildragger, with flaps), drawn with helijah's CC-BY PA-18 model.                               |
 | Field             | One club field, about 2 km across: mown runway, pilot station, fence, tree lines that collide, gentle hills.                                                       |
-| Platform          | Desktop browsers. Target 60 fps on a mid-range laptop's integrated GPU. No touch controls.                                                                         |
+| Platform          | Desktop browsers first; phones and tablets fly with on-screen touch sticks. Target 60 fps on a mid-range laptop's integrated GPU.                                  |
 | Cameras           | Pilot view (default, with auto-zoom) and chase view.                                                                                                               |
-| Input             | Keyboard, plus the Gamepad API, which covers gamepads and USB RC transmitters, with mapping and calibration.                                                       |
+| Input             | Keyboard, touch sticks, and the Gamepad API, which covers gamepads and USB RC transmitters, with mapping and calibration.                                          |
 | Transmitter       | Mode 2 default (1–4 selectable), dual rates, expo, trims, throttle hold, 3-position flap switch, optional flap→elevator mix. Saved per aircraft in `localStorage`. |
 | Flight controller | An empty pass-through stage now. AS3X/SAFE-style stabilisation is planned for later.                                                                               |
 | Wind              | Steady wind plus Dryden turbulence. Wind shear, tree turbulence and thermals are planned for later.                                                                |
@@ -27,7 +27,7 @@ The owner tends to accept well-argued recommendations. Bring a recommendation wi
 
 ## Current state
 
-- **Headless sim core.** All 25 tests pass: aircraft validation, flight envelope, recording and replay.
+- **Headless sim core.** All tests pass: aircraft validation, flight envelope, recording and replay, plus the touch sticks in `src/input/`.
 - **Browser app** deployed at https://hassan.umari.dev/rcwebsim/. It is an installable PWA and plays offline after the first load.
 - **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.
 

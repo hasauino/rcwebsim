@@ -11,6 +11,8 @@ export interface Settings {
   transmitters: Record<string, TransmitterSettings>
   /** Axis/button mapping per gamepad id. */
   gamepads: Record<string, GamepadProfile>
+  /** On-screen sticks: auto shows them on touch devices and after a touch. */
+  controls: { touch: 'auto' | 'on' | 'off' }
   wind: WindSettings
   camera: { mode: CameraMode; autoZoom: boolean; fov: number }
   graphics: { quality: Quality; shadows: boolean; grass: boolean }
@@ -24,6 +26,7 @@ function defaults(): Settings {
   return {
     transmitters: {},
     gamepads: {},
+    controls: { touch: 'auto' },
     wind: { ...DEFAULT_WIND },
     camera: { mode: 'pilot', autoZoom: true, fov: 50 },
     graphics: { quality: 'medium', shadows: true, grass: true },
@@ -41,6 +44,7 @@ function load(): Settings {
     return {
       ...base,
       ...saved,
+      controls: { ...base.controls, ...saved.controls },
       wind: { ...base.wind, ...saved.wind },
       camera: { ...base.camera, ...saved.camera },
       graphics: { ...base.graphics, ...saved.graphics },

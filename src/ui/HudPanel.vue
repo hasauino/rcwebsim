@@ -4,8 +4,11 @@ import { storeToRefs } from 'pinia'
 import { useFlight } from '../stores/flight'
 import { useSettings } from '../stores/settings'
 
-/** `fullscreen` is null where the browser can't go fullscreen. */
-defineProps<{ showHelp: boolean; fullscreen: boolean | null }>()
+/**
+ * `fullscreen` is null where the browser can't go fullscreen. With
+ * `touchSticks` the sticks fill the bottom corners, so the gauges move up.
+ */
+defineProps<{ showHelp: boolean; fullscreen: boolean | null; touchSticks: boolean }>()
 defineEmits<{ settings: []; fullscreen: [] }>()
 
 const flight = useFlight()
@@ -25,7 +28,7 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
 </script>
 
 <template>
-  <div class="hud">
+  <div class="hud" :class="{ touch: touchSticks }">
     <div class="cluster panel">
       <div class="gauge">
         <span class="label">Airspeed</span>
@@ -58,7 +61,7 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       </div>
     </div>
 
-    <div class="sticks panel">
+    <div v-if="!touchSticks" class="sticks panel">
       <div v-for="side in ['left', 'right'] as const" :key="side" class="gimbal">
         <div
           class="dot"
@@ -250,6 +253,21 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
   font-size: 12px;
   line-height: 2;
   color: var(--muted);
+}
+.touch .cluster {
+  top: 16px;
+  bottom: auto;
+  grid-template-columns: repeat(3, auto);
+  gap: 2px 14px;
+  padding: 8px 12px;
+}
+.touch .value {
+  font-size: 16px;
+}
+@media (orientation: portrait) {
+  .touch .cluster {
+    top: 64px;
+  }
 }
 @media (max-width: 720px) {
   .cluster {

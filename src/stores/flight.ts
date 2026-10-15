@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type { ControlInputs, Telemetry } from '../sim/simulation'
 import type { TransmitterState } from '../input/transmitter'
+import type { InputSource } from '../input/devices'
 
 export interface HistoryPoint {
   t: number
@@ -24,6 +25,7 @@ export const useFlight = defineStore('flight', () => {
   const activePad = ref<string | null>(null)
   const rawAxes = shallowRef<number[]>([])
   const rawButtons = shallowRef<boolean[]>([])
+  const lastInput = ref<InputSource | null>(null)
   /** Rolling history for the debug graphs. */
   const history = shallowRef<HistoryPoint[]>([])
 
@@ -39,6 +41,7 @@ export const useFlight = defineStore('flight', () => {
     activePad,
     rawAxes,
     rawButtons,
+    lastInput,
     history,
   }
 })

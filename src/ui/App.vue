@@ -1,27 +1,37 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { FlightApp } from '../app/flight-app'
 import { useFlight } from '../stores/flight'
 import { useSettings } from '../stores/settings'
-import { isTyping } from '../input/devices'
+import { isTyping, type StickSide, type SwitchAction } from '../input/devices'
 import { pa18 } from '../sim/aircraft/pa18'
 import HudPanel from './HudPanel.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import DebugGraphs from './DebugGraphs.vue'
+import TouchControls from './TouchControls.vue'
 import { useFullscreen } from './fullscreen'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const flight = useFlight()
 const settingsStore = useSettings()
 const { settings } = settingsStore
-const { telemetry, status, modelMissing } = storeToRefs(flight)
+const { telemetry, status, modelMissing, lastInput } = storeToRefs(flight)
 const settingsOpen = ref(false)
 const showHelp = ref(true)
 const { supported: canFullscreen, active: isFullscreen, toggle: toggleFullscreen } = useFullscreen()
 let app: FlightApp | null = null
 
 const transmitter = () => settingsStore.transmitterFor(pa18.id, pa18.lowRates)
+
+// Auto: on-screen sticks on touch-first devices, or once the screen is touched,
+// until the keyboard or a gamepad flies again.
+const touchFirst = window.matchMedia('(pointer: coarse)').matches
+const showTouchSticks = computed(() => {
+  const setting = settings.controls.touch
+  if (setting !== 'auto') return setting === 'on'
+  return lastInput.value ? lastInput.value === 'touch' : touchFirst
+})
 
 onMounted(async () => {
   try {
@@ -54,6 +64,11 @@ window.addEventListener('keydown', onKey)
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const reset = (kind: 'runway' | 'air') => app?.reset({ kind })
+const togglePause = () => app?.togglePause()
+const touchDown = (side: StickSide) => app?.input.touchDown(side)
+const touchMove = (side: StickSide, dx: number, dy: number) => app?.input.touchMove(side, dx, dy)
+const touchUp = (side: StickSide) => app?.input.touchUp(side)
+const pressSwitch = (action: SwitchAction) => app?.input.pressSwitch(action)
 const downloadRecording = () => {
   if (!app) return
   const blob = new Blob([JSON.stringify(app.recording())], { type: 'application/json' })
@@ -85,12 +100,23 @@ const downloadRecording = () => {
 
     <template v-else>
       <HudPanel
-        :show-help="showHelp"
+        :show-help="showHelp && !showTouchSticks"
+        :touch-sticks="showTouchSticks"
         :fullscreen="canFullscreen ? isFullscreen : null"
         @settings="settingsOpen = true"
         @fullscreen="toggleFullscreen"
       />
-      <DebugGraphs v-if="settings.debug.graphs" />
+      <DebugGraphs v-if="settings.debug.graphs" :class="{ touch: showTouchSticks }" />
+      <TouchControls
+        v-if="showTouchSticks && !settingsOpen"
+        :mode="transmitter().mode"
+        @touch-down="touchDown"
+        @touch-move="touchMove"
+        @touch-up="touchUp"
+        @switch="pressSwitch"
+        @air-start="reset('air')"
+        @pause="togglePause"
+      />
 
       <div v-if="modelMissing" class="notice panel">
         <strong>Aircraft model not installed</strong>
@@ -108,10 +134,14 @@ const downloadRecording = () => {
       </div>
 
       <div v-if="telemetry?.crashed" class="banner crash">
-        Crashed — press <kbd>R</kbd> to reset on the runway or <kbd>T</kbd> for an air start
+        <template v-if="showTouchSticks">Crashed — tap Runway or Air start</template>
+        <template v-else>
+          Crashed — press <kbd>R</kbd> to reset on the runway or <kbd>T</kbd> for an air start
+        </template>
       </div>
       <div v-else-if="status === 'paused' && !settingsOpen" class="banner">
-        Paused — press <kbd>P</kbd> to resume
+        <template v-if="showTouchSticks">Paused — tap Resume</template>
+        <template v-else>Paused — press <kbd>P</kbd> to resume</template>
       </div>
 
       <SettingsPanel
@@ -129,6 +159,8 @@ const downloadRecording = () => {
   position: relative;
   width: 100%;
   height: 100%;
+  /* The sim owns every gesture: no pinch zoom, pull-to-refresh or double-tap zoom. */
+  touch-action: none;
 }
 .view {
   display: block;
