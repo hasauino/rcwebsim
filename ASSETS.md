@@ -16,4 +16,6 @@
 
 The PA-18 model is CC-BY: the credit above must ship with the app (it is
 shown in the in-app Credits panel, and the original `license.txt` is kept
-next to the model).
+next to the model). The unmodified export is in `models-src/pa18/`; the
+shipped copy is generated from it by `scripts/split-model.ts`, which splits
+the propeller and control surfaces into separate nodes.

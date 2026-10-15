@@ -24,7 +24,14 @@ const TOLERANCE = 0.7
 interface Gltf {
   scene: number
   scenes: { nodes: number[] }[]
-  nodes: { matrix?: number[]; children?: number[]; mesh?: number }[]
+  nodes: {
+    matrix?: number[]
+    translation?: number[]
+    rotation?: number[]
+    scale?: number[]
+    children?: number[]
+    mesh?: number
+  }[]
   meshes: { primitives: { attributes: { POSITION: number }; indices?: number }[] }[]
   accessors: { bufferView: number; byteOffset?: number; count: number; componentType: number }[]
   bufferViews: { byteOffset?: number; byteStride?: number }[]
@@ -65,7 +72,14 @@ const triangles: number[][] = []
 const p = new Vector3()
 function visit(nodeIndex: number, parent: Matrix4) {
   const node = gltf.nodes[nodeIndex]!
-  const world = node.matrix ? parent.clone().multiply(new Matrix4().fromArray(node.matrix)) : parent
+  const local = node.matrix
+    ? new Matrix4().fromArray(node.matrix)
+    : new Matrix4().compose(
+        new Vector3(...((node.translation ?? [0, 0, 0]) as [number, number, number])),
+        new Quaternion(...((node.rotation ?? [0, 0, 0, 1]) as [number, number, number, number])),
+        new Vector3(...((node.scale ?? [1, 1, 1]) as [number, number, number])),
+      )
+  const world = parent.clone().multiply(local)
   if (node.mesh !== undefined) {
     for (const prim of gltf.meshes[node.mesh]!.primitives) {
       const pos = read(prim.attributes.POSITION) as Float32Array

@@ -31,14 +31,14 @@ The owner tends to accept well-argued recommendations. Bring a recommendation wi
 - **Balance.** The pilot can move the CG in settings (side view, lift point, draggable CG). It is saved per aircraft and recorded in flights.
 - **Real radios.** A transmitter on a USB sim cable flies as the transmitter, with the sim as its receiver (ADR-0012): radio setup by moving each control, switches on axes, a channel monitor and a receiver failsafe. "Airframe needs trimming" (Balance tab) builds the plane off true so there is trimming to practise. Not yet tried with a real cable.
 - **Browser app** deployed at https://hassan.umari.dev/rcwebsim/. It is an installable PWA and plays offline after the first load.
+- **Animated model.** The prop spins (blades, then a blur disc), and the ailerons, flaps, elevator and rudder follow their servos. `scripts/split-model.ts` makes the split model from the export in `models-src/`.
 - **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.
 
 ## Open work, roughly by value
 
-1. **Animated control surfaces and prop.** The PA-18 export is merged per material. Split the ailerons, flaps, elevator, rudder and prop in Blender with pivots on the hinge lines, re-export, and bind them in `model.nodes`.
-2. **FMS manual citation.** The `FMS_MANUAL` source in `pa18.ts` is a truncated path. Find the full URL.
-3. **Cruise test.** It holds altitude with an autopilot rather than solving for trim, and its bands are wide (cruise 14–23 m/s, roll 60–220°/s). Tighten them once there is better data.
-4. **Gear behaviour while rolling.** Contact flickers when the plane is light on its wheels at speed. It's harmless so far, but watch it when tuning the ground run.
-5. **Real-hardware checks.** Run `input-probe.html` with a FlySky FS-i6/i6X and its sim cable in Chrome on macOS, in normal and in Student mode. That settles whether the radio's trims reach the trainer port, and so whether `receiverOnly` can stay the default. Then fly radio setup with it, try a gamepad, and measure fps on a mid-range laptop.
-6. **Servo transport delay** ([#1](https://github.com/hasauino/rcwebsim/issues/1)): model the dead time before a servo moves, and source real servo numbers.
-7. **Later features from the agreed list.** Stabiliser modes, time of day, wind shear and thermals, break-apart crashes, a second aircraft or field, replay UI.
+1. **FMS manual citation.** The `FMS_MANUAL` source in `pa18.ts` is a truncated path. Find the full URL.
+2. **Cruise test.** It holds altitude with an autopilot rather than solving for trim, and its bands are wide (cruise 14–23 m/s, roll 60–220°/s). Tighten them once there is better data.
+3. **Gear behaviour while rolling.** Contact flickers when the plane is light on its wheels at speed. It's harmless so far, but watch it when tuning the ground run.
+4. **Real-hardware checks.** Run `input-probe.html` with a FlySky FS-i6/i6X and its sim cable in Chrome on macOS, in normal and in Student mode. That settles whether the radio's trims reach the trainer port, and so whether `receiverOnly` can stay the default. Then fly radio setup with it, try a gamepad, and measure fps on a mid-range laptop.
+5. **Servo transport delay** ([#1](https://github.com/hasauino/rcwebsim/issues/1)): model the dead time before a servo moves, and source real servo numbers.
+6. **Later features from the agreed list.** Stabiliser modes, time of day, wind shear and thermals, break-apart crashes, a second aircraft or field, replay UI.
