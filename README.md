@@ -6,6 +6,8 @@ Fly a radio-controlled Piper Cub in your browser, from the pilot station like a 
 
 ![PA-18 Super Cub on the runway](docs/screenshot.png)
 
+Install it from the browser's address bar to play offline as an app.
+
 Built with Vue, three.js (WebGPU) and Rapier, plus a custom aerodynamics model, so the 1.7 m PA-18 flies like the real foam model.
 
 ## Controls

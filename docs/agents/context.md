@@ -28,7 +28,7 @@ The owner tends to accept well-argued recommendations. Bring a recommendation wi
 ## Current state
 
 - **Headless sim core.** All 25 tests pass: aircraft validation, flight envelope, recording and replay.
-- **Browser app** deployed at https://hassan.umari.dev/rcwebsim/.
+- **Browser app** deployed at https://hassan.umari.dev/rcwebsim/. It is an installable PWA and plays offline after the first load.
 - **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.
 
 ## Open work, roughly by value

@@ -19,4 +19,6 @@ Pushing to `main` runs `.github/workflows/deploy.yml`: typecheck, then tests, th
 
 - **Base path:** CI builds with `BASE_PATH=/<repo>/`. Load runtime assets with _relative_ URLs (`assets/...`, `models/...`) so they resolve under that path. A leading `/` breaks them on Pages.
 - **Checking a production build locally:** `BASE_PATH=/rcwebsim/ npx vite build && BASE_PATH=/rcwebsim/ npx vite preview`, then open `/rcwebsim/`.
+- **Service worker (PWA).** `vite-plugin-pwa` in `vite.config.ts` precaches the whole build, including every file under `public/`, so the app installs and runs offline. A new file type under `public/` needs its extension added to `workbox.globPatterns`, or it won't load offline. The dev server registers no service worker. A production preview does, so a stale build can be served from cache: close the tab or clear site data before checking again. To check offline play, call `context.setOffline(true)` after the first load, reload, and wait for `.spinner` to disappear.
+- **Icons.** `public/icon.svg` is the source. After editing it, run `npx pwa-assets-generator` to regenerate the PNGs and `favicon.ico`.
 - **Watching a deploy:** `gh run watch <id> -R hasauino/rcwebsim --exit-status`.
