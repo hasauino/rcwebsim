@@ -50,6 +50,11 @@ button:hover {
   background: rgba(240, 246, 252, 0.14);
 }
 
+/* Overlay buttons sit on a bright sky; keep their dark panel on hover. */
+button.panel:hover {
+  background: var(--panel-solid);
+}
+
 button.primary {
   background: var(--accent);
   border-color: var(--accent);

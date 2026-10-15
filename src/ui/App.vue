@@ -4,10 +4,12 @@ import { storeToRefs } from 'pinia'
 import { FlightApp } from '../app/flight-app'
 import { useFlight } from '../stores/flight'
 import { useSettings } from '../stores/settings'
+import { isTyping } from '../input/devices'
 import { pa18 } from '../sim/aircraft/pa18'
 import HudPanel from './HudPanel.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import DebugGraphs from './DebugGraphs.vue'
+import { useFullscreen } from './fullscreen'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const flight = useFlight()
@@ -16,6 +18,7 @@ const { settings } = settingsStore
 const { telemetry, status, modelMissing } = storeToRefs(flight)
 const settingsOpen = ref(false)
 const showHelp = ref(true)
+const { supported: canFullscreen, active: isFullscreen, toggle: toggleFullscreen } = useFullscreen()
 let app: FlightApp | null = null
 
 const transmitter = () => settingsStore.transmitterFor(pa18.id, pa18.lowRates)
@@ -45,6 +48,7 @@ watch(settingsOpen, (open) => app?.setPaused(open))
 function onKey(e: KeyboardEvent) {
   if (e.code === 'Escape') settingsOpen.value = !settingsOpen.value
   if (e.code === 'Slash' && !settingsOpen.value) showHelp.value = !showHelp.value
+  if (e.code === 'KeyV' && !e.repeat && !isTyping(e)) toggleFullscreen()
 }
 window.addEventListener('keydown', onKey)
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -80,7 +84,12 @@ const downloadRecording = () => {
     </div>
 
     <template v-else>
-      <HudPanel :show-help="showHelp" @settings="settingsOpen = true" />
+      <HudPanel
+        :show-help="showHelp"
+        :fullscreen="canFullscreen ? isFullscreen : null"
+        @settings="settingsOpen = true"
+        @fullscreen="toggleFullscreen"
+      />
       <DebugGraphs v-if="settings.debug.graphs" />
 
       <div v-if="modelMissing" class="notice panel">

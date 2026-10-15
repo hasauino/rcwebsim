@@ -21,7 +21,10 @@ Built with Vue, three.js (WebGPU) and Rapier, plus a custom aerodynamics model, 
 | `F`       | Flaps                       |
 | `R` / `T` | Reset on runway / air start |
 | `C`       | Pilot / chase camera        |
+| `V`       | Full screen                 |
 | `Esc`     | Settings                    |
+
+In full screen, Chrome and Edge keep `Esc` for Settings: hold it to leave full screen. Firefox and Safari leave full screen on `Esc`.
 
 Gamepads and USB RC transmitters work too. Set them up in Settings → Controls.
 

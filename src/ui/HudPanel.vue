@@ -4,8 +4,9 @@ import { storeToRefs } from 'pinia'
 import { useFlight } from '../stores/flight'
 import { useSettings } from '../stores/settings'
 
-defineProps<{ showHelp: boolean }>()
-defineEmits<{ settings: [] }>()
+/** `fullscreen` is null where the browser can't go fullscreen. */
+defineProps<{ showHelp: boolean; fullscreen: boolean | null }>()
+defineEmits<{ settings: []; fullscreen: [] }>()
 
 const flight = useFlight()
 const { telemetry: t, channels, transmitter: tx } = storeToRefs(flight)
@@ -82,6 +83,15 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       <span class="chip panel">{{
         settings.camera.mode === 'pilot' ? 'Pilot view' : 'Chase view'
       }}</span>
+      <button
+        v-if="fullscreen !== null"
+        class="panel"
+        :title="fullscreen ? 'Exit full screen (V)' : 'Full screen (V)'"
+        @mousedown.prevent
+        @click="$emit('fullscreen')"
+      >
+        {{ fullscreen ? 'Exit full screen' : 'Full screen' }}
+      </button>
       <button class="panel" title="Settings (Esc)" @click="$emit('settings')">⚙ Settings</button>
     </div>
 
@@ -97,7 +107,10 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
         >
         rud
       </div>
-      <div><kbd>R</kbd> runway · <kbd>T</kbd> air start · <kbd>C</kbd> camera</div>
+      <div>
+        <kbd>R</kbd> runway · <kbd>T</kbd> air start · <kbd>C</kbd> camera · <kbd>V</kbd> full
+        screen
+      </div>
       <div>
         <kbd>P</kbd> pause · <kbd>G</kbd> aero overlay · <kbd>Esc</kbd> settings · <kbd>/</kbd> hide
       </div>
