@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Input probe</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --panel: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 system-ui, sans-serif;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0;
+      }
+      p,
+      ol {
+        margin: 0;
+        color: var(--muted);
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      th {
+        text-align: left;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      td,
+      th {
+        padding: 2px 6px;
+      }
+      .bar {
+        position: relative;
+        height: 8px;
+        min-width: 120px;
+        border-radius: 4px;
+        background: rgba(240, 246, 252, 0.1);
+      }
+      .bar div {
+        position: absolute;
+        top: -2px;
+        width: 4px;
+        height: 12px;
+        margin-left: -2px;
+        border-radius: 2px;
+        background: var(--accent);
+      }
+      button {
+        justify-self: start;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #21262d;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+      code {
+        font-family: var(--mono);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Input probe</h1>
+      <p>
+        Shows exactly what the browser reads from a gamepad or a USB transmitter on a sim cable, so
+        a radio can be checked before it flies the sim.
+      </p>
+      <ol>
+        <li>Switch the radio on, then plug in the cable. Move a stick so the browser shows it.</li>
+        <li>
+          Move each stick and switch in turn and note which axis moves, which way, and how far.
+        </li>
+        <li>
+          With the sticks centred, click a trim a few times: if the axis moves, the radio's trims
+          reach the sim. Try it again in the radio's Student (trainer) mode if it has one.
+        </li>
+        <li>Copy the report and attach it to the issue.</li>
+      </ol>
+      <div id="pads"><p>No gamepad yet: plug one in and move a stick or press a button.</p></div>
+      <button id="copy" type="button">Copy report</button>
+    </main>
+    <script>
+      const seen = new Map()
+      const padsEl = document.getElementById('pads')
+
+      function connected() {
+        return [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(
+          (p) => p && p.connected,
+        )
+      }
+
+      function track(pad) {
+        let s = seen.get(pad.id)
+        if (!s) seen.set(pad.id, (s = { min: [], max: [], first: performance.now(), updates: 0 }))
+        if (s.last !== pad.timestamp) s.updates++
+        s.last = pad.timestamp
+        pad.axes.forEach((v, i) => {
+          s.min[i] = Math.min(s.min[i] ?? v, v)
+          s.max[i] = Math.max(s.max[i] ?? v, v)
+        })
+        return s
+      }
+
+      function render() {
+        const pads = connected()
+        if (pads.length) draw(pads)
+        requestAnimationFrame(render)
+      }
+
+      function draw(pads) {
+        padsEl.innerHTML = pads
+          .map((pad) => {
+            const s = track(pad)
+            const rate = (s.updates / ((performance.now() - s.first) / 1000)).toFixed(0)
+            const rows = pad.axes
+              .map(
+                (v, i) =>
+                  `<tr><td>${i}</td><td>${v.toFixed(4)}</td><td>${s.min[i].toFixed(4)}</td><td>${s.max[i].toFixed(4)}</td>` +
+                  `<td><div class="bar"><div style="left:${50 + Math.max(-1, Math.min(1, v)) * 50}%"></div></div></td></tr>`,
+              )
+              .join('')
+            const pressed = pad.buttons.flatMap((b, i) => (b.pressed ? [i] : []))
+            return (
+              `<section><b>${escape(pad.id)}</b>` +
+              `<p>mapping: <code>${pad.mapping || '(none)'}</code> · ${pad.axes.length} axes · ${pad.buttons.length} buttons · ~${rate} updates/s` +
+              ` · pressed: ${pressed.length ? pressed.join(', ') : 'none'}</p>` +
+              `<table><thead><tr><th>Axis</th><th>Now</th><th>Min</th><th>Max</th><th></th></tr></thead><tbody>${rows}</tbody></table></section>`
+            )
+          })
+          .join('')
+      }
+
+      function escape(text) {
+        return text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
+      }
+
+      document.getElementById('copy').addEventListener('click', async () => {
+        const report = {
+          userAgent: navigator.userAgent,
+          pads: connected().map((pad) => {
+            const s = seen.get(pad.id)
+            return {
+              id: pad.id,
+              mapping: pad.mapping,
+              axes: pad.axes.map((v, i) => ({ now: v, min: s?.min[i], max: s?.max[i] })),
+              buttons: pad.buttons.length,
+            }
+          }),
+        }
+        const text = JSON.stringify(report, null, 2)
+        try {
+          await navigator.clipboard.writeText(text)
+        } catch {
+          prompt('Copy the report:', text)
+        }
+      })
+
+      render()
+    </script>
+  </body>
+</html>

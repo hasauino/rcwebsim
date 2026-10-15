@@ -26,6 +26,19 @@ const cgMm = computed({
 })
 const judged = computed(() => balance(aircraft, cgMm.value / 1000))
 
+/** A fresh airframe: a new seed draws new build tolerances. */
+const newSeed = () => Math.floor(Math.random() * 2 ** 31)
+const needsTrimming = computed({
+  get: () => settings.builds[aircraft.id]?.needsTrimming ?? false,
+  set: (on: boolean) => {
+    settings.builds[aircraft.id] = {
+      needsTrimming: on,
+      seed: settings.builds[aircraft.id]?.seed ?? newSeed(),
+    }
+  },
+})
+const buildNew = () => (settings.builds[aircraft.id] = { needsTrimming: true, seed: newSeed() })
+
 const presets = [
   { label: 'Nose heavy', value: mm(front) - 15 },
   { label: 'Centered', value: mm(aircraft.centerOfGravity[2]) },
@@ -200,6 +213,16 @@ function nudge(e: KeyboardEvent) {
       </button>
     </div>
     <p class="hint">Moving the CG does not change the weight, and takes effect straight away.</p>
+
+    <label class="check">
+      <input v-model="needsTrimming" type="checkbox" />
+      <span>
+        <b>Airframe needs trimming.</b> Like a model off the building board, the control surfaces
+        sit a little off neutral, so a hands-off plane drifts until you trim it out in flight. The
+        same airframe stays, with its trims, until you build a new one.
+      </span>
+    </label>
+    <button v-if="needsTrimming" class="new-build" @click="buildNew">Build a new airframe</button>
   </div>
 </template>
 
@@ -207,6 +230,21 @@ function nudge(e: KeyboardEvent) {
 .balance {
   display: grid;
   gap: 12px;
+}
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+}
+.check input {
+  margin-top: 3px;
+}
+.check b {
+  color: inherit;
+}
+.new-build {
+  justify-self: start;
 }
 .hint,
 .muted {

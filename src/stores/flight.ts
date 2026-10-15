@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import type { ControlInputs, Telemetry } from '../sim/simulation'
 import type { TransmitterState } from '../input/transmitter'
-import type { InputSource } from '../input/devices'
+import type { InputSource, SwitchAction } from '../input/devices'
+import type { RadioSetupView } from '../input/radio-setup'
 
 export interface HistoryPoint {
   t: number
@@ -23,6 +24,16 @@ export const useFlight = defineStore('flight', () => {
   const modelMissing = ref(false)
   const renderer = ref<string>('')
   const activePad = ref<string | null>(null)
+  /** Every connected gamepad's id. */
+  const pads = shallowRef<string[]>([])
+  /** A radio's own channels fly the plane; the sim transmitter is bypassed. */
+  const radioIsTransmitter = ref(false)
+  /** The radio flying the plane has gone and the receiver has failed safe. */
+  const failsafe = ref(false)
+  /** A switch action waiting for a switch to be flipped or a button pressed. */
+  const learning = ref<SwitchAction | null>(null)
+  /** The radio setup in progress, if any. */
+  const setup = shallowRef<RadioSetupView | null>(null)
   const rawAxes = shallowRef<number[]>([])
   const rawButtons = shallowRef<boolean[]>([])
   const lastInput = ref<InputSource | null>(null)
@@ -41,6 +52,11 @@ export const useFlight = defineStore('flight', () => {
     modelMissing,
     renderer,
     activePad,
+    pads,
+    radioIsTransmitter,
+    failsafe,
+    setup,
+    learning,
     rawAxes,
     rawButtons,
     lastInput,

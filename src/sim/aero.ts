@@ -1,6 +1,7 @@
 import { Vector3 } from 'three'
 import type { AircraftSpec, ControlSurfaceSpec, LiftingSurfaceSpec } from './aircraft/types'
 import { airfoil, type Airfoil, type Coefficients } from './airfoil'
+import type { BuildTolerances } from './build'
 import { DYNAMIC_VISCOSITY } from './atmosphere'
 import type { Propulsion } from './propulsion'
 import type { SurfaceChannel } from './servos'
@@ -91,6 +92,13 @@ export class Aerodynamics {
   readonly moment = new Vector3()
   private readonly airfoils = new Map<Strip, Airfoil>()
   private readonly wingspan: number
+  /** Where each surface sits with its servo centred, rad (a build's rigging error). */
+  private readonly neutral: Record<SurfaceChannel, number> = {
+    aileron: 0,
+    elevator: 0,
+    rudder: 0,
+    flap: 0,
+  }
 
   constructor(private readonly spec: AircraftSpec) {
     const bySurface = new Map<string, SurfaceState>()
@@ -119,6 +127,13 @@ export class Aerodynamics {
     }
     const wing = spec.surfaces[0]!
     this.wingspan = wing.semiSpan * (wing.mirrored ? 2 : 1)
+  }
+
+  /** Rigs each surface off neutral by `build`, the way an untrimmed airframe comes out. */
+  setBuildTolerances(build: BuildTolerances): void {
+    this.neutral.aileron = build.aileronDeg * DEG
+    this.neutral.elevator = build.elevatorDeg * DEG
+    this.neutral.rudder = build.rudderDeg * DEG
   }
 
   reset(): void {
@@ -183,7 +198,9 @@ export class Aerodynamics {
       let dcm = 0
       const control = strip.control
       if (control) {
-        const target = input.servos[control.channel] * control.gain * control.throw
+        const target =
+          (input.servos[control.channel] * control.throw + this.neutral[control.channel]) *
+          control.gain
         // Linkage backlash: the surface lags the servo within the slop band.
         control.deflection = Math.min(
           target + control.slop,

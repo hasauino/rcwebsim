@@ -1,7 +1,7 @@
 import { Quaternion, Vector3 } from 'three'
 import { MotorSound } from '../audio/motor'
-import { InputDevices, defaultGamepadProfile, type GamepadProfile } from '../input/devices'
-import { mixChannels, neutralSticks, type TransmitterSettings } from '../input/transmitter'
+import { InputDevices } from '../input/devices'
+import { neutralSticks, type TransmitterSettings } from '../input/transmitter'
 import { pa18 } from '../sim/aircraft/pa18'
 import { treeLayout } from '../sim/field'
 import { FlightRecorder, type FlightRecording } from '../sim/recording'
@@ -13,7 +13,7 @@ import {
   type Telemetry,
 } from '../sim/simulation'
 import type { useFlight } from '../stores/flight'
-import { cgFor, type Settings } from '../stores/settings'
+import { buildFor, cgFor, type Settings } from '../stores/settings'
 import { World3D } from '../render/world'
 import { Pilot } from './pilot'
 import { FixedStepRunner } from './runner'
@@ -68,6 +68,7 @@ export class FlightApp {
       wind: { ...this.settings.wind },
       seed: this.seed,
       cg: cgFor(this.settings, this.aircraft),
+      buildTolerances: buildFor(this.settings, this.aircraft),
     })
     if (this.disposed) return this.sim.dispose()
     this.runner = new FixedStepRunner(this.sim)
@@ -84,7 +85,8 @@ export class FlightApp {
     this.input = new InputDevices(
       this.transmitterState,
       () => this.transmitter().mode,
-      (pad) => this.gamepadProfile(pad),
+      // Looked up each time: resetting settings replaces the object.
+      () => this.settings.gamepads,
       {
         reset: () => this.reset({ kind: 'runway' }),
         airStart: () => this.reset({ kind: 'air' }),
@@ -142,6 +144,13 @@ export class FlightApp {
     this.recorder.setCg(cg)
   }
 
+  /** Rigs the airframe from settings: perfect, or built off true and needing trim. */
+  setBuild(): void {
+    const build = buildFor(this.settings, this.aircraft)
+    this.sim.setBuildTolerances(build)
+    this.recorder.setBuildTolerances(build)
+  }
+
   togglePause(): void {
     this.paused = !this.paused
     this.flight.status = this.paused ? 'paused' : 'running'
@@ -180,23 +189,17 @@ export class FlightApp {
       wind: { ...this.settings.wind },
       spawn: this.spawn,
       cg: cgFor(this.settings, this.aircraft),
+      buildTolerances: buildFor(this.settings, this.aircraft),
     })
-  }
-
-  private gamepadProfile(pad: Gamepad): GamepadProfile {
-    const saved = this.settings.gamepads[pad.id]
-    if (saved) return saved
-    const created = defaultGamepadProfile(pad, this.transmitter().mode)
-    this.settings.gamepads[pad.id] = created
-    return created
   }
 
   private frame(time: number): void {
     const dt = this.lastFrame ? Math.min((time - this.lastFrame) / 1000, 0.1) : 1 / 60
     this.lastFrame = time
 
+    this.input.pinnedPad = this.settings.controls.pad
     this.input.update(dt)
-    this.channels = mixChannels(this.transmitter(), this.transmitterState)
+    this.channels = this.input.channels(this.transmitter())
     // Leaving the pilot view, by key or in settings, ends walk mode.
     if (this.settings.camera.mode !== 'pilot') this.input.walking = false
     if (this.input.walking) this.pilot.walk(dt, this.input.walk, this.world.facing())
@@ -238,6 +241,11 @@ export class FlightApp {
       sticks: { ...this.transmitterState.sticks },
     }
     f.activePad = this.input.activePad
+    if (f.pads.join('\n') !== this.input.pads.join('\n')) f.pads = [...this.input.pads]
+    f.radioIsTransmitter = this.input.radioIsTransmitter
+    f.failsafe = this.input.failsafe
+    f.setup = this.input.setup?.view() ?? null
+    f.learning = this.input.learning
     f.rawAxes = this.input.rawAxes
     f.rawButtons = this.input.rawButtons
     f.lastInput = this.input.lastInput

@@ -1,6 +1,6 @@
 # Verifying changes in the real app, and deploying
 
-Unit tests cover `src/sim/`, the touch-stick and walk-mode logic in `InputDevices`, and the walking `Pilot`. Anything visual, any other input, and audio have to be checked in a browser.
+Unit tests cover `src/sim/`, the touch-stick, walk-mode, gamepad and USB-radio logic in `InputDevices` (radio setup included), and the walking `Pilot`. Anything visual, any other input, and audio have to be checked in a browser.
 
 ## Driving the app in a browser
 
@@ -12,6 +12,8 @@ Unit tests cover `src/sim/`, the touch-stick and walk-mode logic in `InputDevice
 4. **Fly it.** Use keyboard input (`page.keyboard.down('KeyW')`, etc.; the full key list is the help card in `src/ui/HudPanel.vue`), take screenshots, and look at them. Collect `console` errors, `pageerror` events and failed responses. A clean run has none.
 
 **Touch sticks.** Emulate a phone with `browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true })`. Playwright's `touchscreen` only taps, so drag the pads with CDP: `Input.dispatchTouchEvent` with `touchStart`/`touchMove`/`touchEnd` and one touch point per finger. Read the result from `window.rcfsim.input.state.sticks`.
+
+**Gamepads and radios without the hardware.** Stub `navigator.getGamepads` in `page.addInitScript` to return objects shaped like a `Gamepad` (`id`, `connected`, `mapping: ''` for a sim cable, `axes`, `buttons`), and change their `axes` between frames. A pad flies once an axis has moved by more than 0.2. Read the result from `window.rcfsim.input.channels(...)`, `.radioIsTransmitter` and `.failsafe`. `input-probe.html` reads the same stub.
 
 Hands-off at full power the plane climbs steeply. That is expected, because neutral elevator is trimmed for about 12.5 m/s. Scripted pull-ups at full power loop it into the ground, and that is pilot error, not a regression.
 

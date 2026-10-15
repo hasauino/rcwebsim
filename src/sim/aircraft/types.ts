@@ -149,6 +149,17 @@ export interface ServoSpec {
   slopDeg: number
 }
 
+/**
+ * The largest neutral offset a typical build leaves at each control
+ * surface, degrees: linkages set by eye, a warped aileron, a fin glued a
+ * touch off. A flight with build tolerances draws its offsets from this band.
+ */
+export interface BuildToleranceSpec {
+  aileronDeg: number
+  elevatorDeg: number
+  rudderDeg: number
+}
+
 export interface CollisionShapeSpec {
   name: string
   /** Box half extents. */
@@ -202,6 +213,7 @@ export interface AircraftSpec {
   esc: EscSpec
   battery: BatterySpec
   servo: ServoSpec
+  buildTolerance: BuildToleranceSpec
   collision: CollisionShapeSpec[]
   /**
    * Airframe impact speed (m/s) that counts as a crash: contact impulse on

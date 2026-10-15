@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia'
 import { reactive, watch } from 'vue'
 import { defaultTransmitter, type LowRates, type TransmitterSettings } from '../input/transmitter'
-import type { GamepadProfile } from '../input/devices'
+import type { DeviceProfile } from '../input/devices'
 import type { AircraftSpec } from '../sim/aircraft/types'
-import { DEFAULT_WIND, type WindSettings } from '../sim/simulation'
+import {
+  DEFAULT_WIND,
+  PERFECT_BUILD,
+  buildTolerances,
+  type BuildTolerances,
+  type WindSettings,
+} from '../sim/simulation'
 import type { CameraMode } from '../render/cameras'
 import type { Quality } from '../render/world'
 
@@ -12,10 +18,19 @@ export interface Settings {
   transmitters: Record<string, TransmitterSettings>
   /** CG per aircraft id, m behind the datum. Absent means the manual's. */
   cg: Record<string, number>
-  /** Axis/button mapping per gamepad id. */
-  gamepads: Record<string, GamepadProfile>
-  /** On-screen sticks: auto shows them on touch devices and after a touch. */
-  controls: { touch: 'auto' | 'on' | 'off' }
+  /**
+   * Rigging per aircraft id. With `needsTrimming` the airframe is built off
+   * true by `seed` and has to be trimmed out; absent or off, it is perfect.
+   */
+  builds: Record<string, { needsTrimming: boolean; seed: number }>
+  /** Axis/switch mapping per gamepad id: a gamepad's, or a radio's on a sim cable. */
+  gamepads: Record<string, DeviceProfile>
+  controls: {
+    /** On-screen sticks: auto shows them on touch devices and after a touch. */
+    touch: 'auto' | 'on' | 'off'
+    /** Gamepad id to fly with; null follows whichever was moved last. */
+    pad: string | null
+  }
   wind: WindSettings
   camera: { mode: CameraMode; autoZoom: boolean; fov: number }
   graphics: { quality: Quality; shadows: boolean; grass: boolean }
@@ -28,14 +43,21 @@ export function cgFor(settings: Settings, aircraft: AircraftSpec): number {
   return settings.cg[aircraft.id] ?? aircraft.centerOfGravity[2]
 }
 
+/** How the pilot's airframe is rigged: perfect unless it needs trimming. */
+export function buildFor(settings: Settings, aircraft: AircraftSpec): BuildTolerances {
+  const build = settings.builds[aircraft.id]
+  return build?.needsTrimming ? buildTolerances(aircraft, build.seed) : { ...PERFECT_BUILD }
+}
+
 const STORAGE_KEY = 'rcfsim.settings.v1'
 
 function defaults(): Settings {
   return {
     transmitters: {},
     cg: {},
+    builds: {},
     gamepads: {},
-    controls: { touch: 'auto' },
+    controls: { touch: 'auto', pad: null },
     wind: { ...DEFAULT_WIND },
     camera: { mode: 'pilot', autoZoom: true, fov: 50 },
     graphics: { quality: 'medium', shadows: true, grass: true },

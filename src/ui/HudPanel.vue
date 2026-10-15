@@ -12,7 +12,7 @@ defineProps<{ showHelp: boolean; fullscreen: boolean | null; touchSticks: boolea
 defineEmits<{ settings: []; fullscreen: [] }>()
 
 const flight = useFlight()
-const { telemetry: t, channels, transmitter: tx } = storeToRefs(flight)
+const { telemetry: t, channels, transmitter: tx, radioIsTransmitter } = storeToRefs(flight)
 const { settings } = useSettings()
 
 const kmh = computed(() => ((t.value?.airspeed ?? 0) * 3.6).toFixed(0))
@@ -61,7 +61,8 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       </div>
     </div>
 
-    <div v-if="!touchSticks" class="sticks panel">
+    <!-- A radio's sticks are in the pilot's hands; the sim only sees its channels. -->
+    <div v-if="!touchSticks && !radioIsTransmitter" class="sticks panel">
       <div v-for="side in ['left', 'right'] as const" :key="side" class="gimbal">
         <div
           class="dot"
@@ -103,8 +104,11 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       <div>
         <kbd>↑</kbd><kbd>↓</kbd> elevator · <kbd>A</kbd>/<kbd>D</kbd> rudder · <kbd>Shift</kbd> fine
       </div>
-      <div><kbd>F</kbd> flaps · <kbd>E</kbd> rates · <kbd>H</kbd> throttle hold</div>
-      <div>
+      <!-- With a radio as the transmitter, its own switches and trims do these. -->
+      <div v-if="!radioIsTransmitter">
+        <kbd>F</kbd> flaps · <kbd>E</kbd> rates · <kbd>H</kbd> throttle hold
+      </div>
+      <div v-if="!radioIsTransmitter">
         Trims: <kbd>I</kbd>/<kbd>K</kbd> elev · <kbd>J</kbd>/<kbd>L</kbd> ail · <kbd>U</kbd>/<kbd
           >O</kbd
         >

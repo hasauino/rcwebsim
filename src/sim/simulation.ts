@@ -2,6 +2,7 @@ import { Euler, Quaternion, Vector3 } from 'three'
 import type { EventQueue, RigidBody, World } from '@dimforge/rapier3d-compat'
 import type { AircraftSpec, Channel } from './aircraft/types'
 import { Aerodynamics, type Strip } from './aero'
+import { PERFECT_BUILD, type BuildTolerances } from './build'
 import { airDensity } from './atmosphere'
 import { FIELD, terrainHeight, treeLayout } from './field'
 import { passThrough, type FlightController } from './flight-controller'
@@ -11,6 +12,8 @@ import { Propulsion } from './propulsion'
 import { Servos } from './servos'
 import { Wind } from './wind'
 import { Wrench } from './wrench'
+
+export { PERFECT_BUILD, buildTolerances, type BuildTolerances } from './build'
 
 const DEG = Math.PI / 180
 const IDENTITY = { x: 0, y: 0, z: 0, w: 1 } as const
@@ -41,6 +44,8 @@ export interface SimulationOptions {
    * is slid in its bay.
    */
   cg?: number
+  /** How this airframe is rigged off neutral. Defaults to a perfect build. */
+  buildTolerances?: BuildTolerances
 }
 
 export interface Vec3Like {
@@ -142,6 +147,7 @@ export class Simulation {
     thrust: new Vector3(),
   }
   private readonly cg: Vector3
+  private build: BuildTolerances = { ...PERFECT_BUILD }
   private readonly wingRoot: Vector3
   private time = 0
   private crashed = false
@@ -173,6 +179,7 @@ export class Simulation {
     this.wind = new Wind(options.seed ?? 1)
     this.setWind(options.wind ?? DEFAULT_WIND)
     if (options.cg !== undefined) this.setCg(options.cg)
+    if (options.buildTolerances) this.setBuildTolerances(options.buildTolerances)
     this.reset(options.spawn)
   }
 
@@ -280,6 +287,19 @@ export class Simulation {
   setCg(cg: number): void {
     this.cg.z = cg
     this.body.setAdditionalMassProperties(...this.massProperties(), true)
+  }
+
+  /**
+   * Rigs the airframe's control surfaces off neutral, as a build leaves them.
+   * Record it with `FlightRecorder.setBuildTolerances` to keep replays exact.
+   */
+  setBuildTolerances(build: BuildTolerances): void {
+    this.build = { ...build }
+    this.aero.setBuildTolerances(build)
+  }
+
+  buildTolerances(): BuildTolerances {
+    return { ...this.build }
   }
 
   /** Current CG, body frame. */

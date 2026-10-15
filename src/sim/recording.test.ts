@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pa18 } from './aircraft/pa18'
-import { createSimulation } from './simulation'
+import { buildTolerances, createSimulation } from './simulation'
 import { FlightRecorder, replay } from './recording'
 
 describe('flight recording', () => {
@@ -83,6 +83,34 @@ describe('flight recording', () => {
     replay(fresh, JSON.parse(JSON.stringify(recorder.finish())))
     expect(fresh.state()).toEqual(sim.state())
     expect(fresh.centerOfGravity().z).toBe(0.095)
+  })
+
+  it('replays an airframe built off true, including a new one rigged during the flight', async () => {
+    const options = {
+      aircraft: pa18,
+      seed: 6,
+      buildTolerances: buildTolerances(pa18, 11),
+      spawn: { kind: 'air' as const },
+    }
+    const sim = await createSimulation(options)
+    const recorder = new FlightRecorder(options)
+    const inputs = { throttle: 0.6, aileron: 0, elevator: 0, rudder: 0, flap: 0 }
+    for (let i = 0; i < 1000; i++) {
+      if (i === 400) {
+        sim.setBuildTolerances(buildTolerances(pa18, 12))
+        recorder.setBuildTolerances(buildTolerances(pa18, 12))
+      }
+      recorder.record(inputs)
+      sim.step(inputs)
+    }
+
+    const fresh = await createSimulation({
+      aircraft: pa18,
+      buildTolerances: buildTolerances(pa18, 1),
+    })
+    replay(fresh, JSON.parse(JSON.stringify(recorder.finish())))
+    expect(fresh.state()).toEqual(sim.state())
+    expect(fresh.buildTolerances()).toEqual(buildTolerances(pa18, 12))
   })
 
   it("replays a recording made at the aircraft's own CG on a sim whose CG was moved", async () => {

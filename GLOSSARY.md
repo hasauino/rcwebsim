@@ -44,6 +44,14 @@ _Avoid_: replay file, log
 The pilot's radio: sticks and switches whose settings turn stick positions into channels.
 _Avoid_: controller, remote
 
+**Sim cable**:
+A USB dongle plugged into a transmitter's trainer port that turns its PPM signal into a joystick, so the pilot's own radio flies the sim. Each of its axes is a channel, not a gimbal.
+_Avoid_: flight controller, USB controller, adapter
+
+**Radio setup**:
+Finding which axis of a sim cable carries each channel by moving that control, then scaling each axis from a full sweep. The centre is the middle of the sweep, so the radio's trims survive.
+_Avoid_: calibration (for a radio), centre capture
+
 **Gimbal**:
 One stick axis on the transmitter (left/right stick, horizontal/vertical).
 _Avoid_: axis, joystick axis
@@ -74,6 +82,16 @@ A safety switch that forces the motor off regardless of the throttle stick.
 **Flap switch**:
 A three-position switch setting flaps up, half or full.
 
+**Receiver**:
+The aircraft's radio receiver: it passes the transmitter's channels to the servos. With a radio on a sim cable, the sim is only the receiver.
+
+**Channel monitor**:
+The receiver's channels shown as servo pulse widths (1000–2000 µs), the way a radio's servo display shows them.
+
+**Failsafe**:
+What the receiver does when the transmitter is lost: throttle cut, surfaces held where they were.
+_Avoid_: disconnect, signal loss (for the response itself)
+
 **Mix**:
 One channel adding to another, e.g. down elevator added as flaps deploy.
 
@@ -83,6 +101,10 @@ _Avoid_: autopilot, stabiliser (for the stage itself)
 
 **Servo**:
 The actuator that moves a control surface, with finite speed and some slop.
+
+**Build tolerances**:
+How far one airframe's control surfaces sit off neutral with the servos centred, as a real build leaves them; trimming cancels them.
+_Avoid_: random offsets, noise
 
 ## Airframe
 

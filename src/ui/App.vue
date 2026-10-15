@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { FlightApp } from '../app/flight-app'
 import { useFlight } from '../stores/flight'
@@ -11,16 +11,18 @@ import SettingsPanel from './SettingsPanel.vue'
 import DebugGraphs from './DebugGraphs.vue'
 import TouchControls from './TouchControls.vue'
 import { useFullscreen } from './fullscreen'
+import { flightAppKey } from './flight-app-key'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const flight = useFlight()
 const settingsStore = useSettings()
 const { settings } = settingsStore
-const { telemetry, status, modelMissing, lastInput } = storeToRefs(flight)
+const { telemetry, status, modelMissing, lastInput, failsafe } = storeToRefs(flight)
 const settingsOpen = ref(false)
 const showHelp = ref(true)
 const { supported: canFullscreen, active: isFullscreen, toggle: toggleFullscreen } = useFullscreen()
 let app: FlightApp | null = null
+provide(flightAppKey, () => app)
 
 const transmitter = () => settingsStore.transmitterFor(pa18.id, pa18.lowRates)
 
@@ -56,6 +58,10 @@ watch(
 watch(
   () => settings.cg[pa18.id],
   () => app?.setCg(),
+)
+watch(
+  () => ({ ...settings.builds[pa18.id] }),
+  () => app?.setBuild(),
 )
 watch(settingsOpen, (open) => app?.setPaused(open))
 
@@ -142,6 +148,9 @@ const downloadRecording = () => {
         <template v-else>
           Crashed — press <kbd>R</kbd> to reset on the runway or <kbd>T</kbd> for an air start
         </template>
+      </div>
+      <div v-else-if="failsafe" class="banner crash">
+        FAILSAFE — the transmitter is gone: throttle cut, controls held
       </div>
       <div v-else-if="status === 'paused' && !settingsOpen" class="banner">
         <template v-if="showTouchSticks">Paused — tap Resume</template>

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { pa18 } from './aircraft/pa18'
 import { balance, neutralPoint } from './balance'
-import { createSimulation, type ControlInputs, type Simulation } from './simulation'
+import {
+  PERFECT_BUILD,
+  buildTolerances,
+  createSimulation,
+  type BuildTolerances,
+  type ControlInputs,
+  type Simulation,
+} from './simulation'
 
 const idle: ControlInputs = { aileron: 0, elevator: 0, rudder: 0, throttle: 0, flap: 0 }
 const calm = { speed: 0, fromDeg: 0, turbulence: 0 }
@@ -326,6 +333,56 @@ describe('Simulation: balance', () => {
     sim.setCg(0.07)
     sim.reset({ kind: 'runway' })
     expect(sim.centerOfGravity().z).toBe(0.07)
+  })
+})
+
+describe('Simulation: build tolerances', () => {
+  /** Telemetry after flying hands-off at part throttle from an air start. */
+  async function handsOff(build: BuildTolerances, seconds: number) {
+    const sim = await createSimulation({
+      aircraft: pa18,
+      wind: calm,
+      spawn: { kind: 'air', altitude: 80, speed: 15 },
+      buildTolerances: build,
+    })
+    run(sim, seconds, () => ({ ...idle, throttle: 0.5 }))
+    return sim.telemetry()
+  }
+
+  it('flies off true when a control linkage is set off neutral, the way the stick would move it', async () => {
+    const offset = async (build: Partial<BuildTolerances>, seconds: number) => {
+      const straight = await handsOff(PERFECT_BUILD, seconds)
+      const off = await handsOff({ ...PERFECT_BUILD, ...build }, seconds)
+      return {
+        roll: off.rollDeg - straight.rollDeg,
+        pitch: off.pitchDeg - straight.pitchDeg,
+        turn: ((off.headingDeg - straight.headingDeg + 540) % 360) - 180,
+      }
+    }
+    // Half a degree of aileron is a few trim clicks, yet rolls the plane on in seconds.
+    expect((await offset({ aileronDeg: 0.5 }, 3)).roll).toBeGreaterThan(5)
+    expect((await offset({ elevatorDeg: 0.75 }, 2)).pitch).toBeGreaterThan(2)
+    expect((await offset({ rudderDeg: 1 }, 5)).turn).toBeGreaterThan(3)
+  })
+
+  it('needs a few clicks of trim at most, so the plane stays flyable', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const build = buildTolerances(pa18, seed)
+      expect(Math.abs(build.aileronDeg)).toBeLessThanOrEqual(pa18.buildTolerance.aileronDeg)
+      expect(Math.abs(build.elevatorDeg)).toBeLessThanOrEqual(pa18.buildTolerance.elevatorDeg)
+      expect(Math.abs(build.rudderDeg)).toBeLessThanOrEqual(pa18.buildTolerance.rudderDeg)
+    }
+    expect(buildTolerances(pa18, 7)).toEqual(buildTolerances(pa18, 7))
+    expect(buildTolerances(pa18, 7)).not.toEqual(buildTolerances(pa18, 8))
+  })
+
+  it('keeps the airframe through a reset, and flies perfect by default', async () => {
+    const sim = await createSimulation({ aircraft: pa18, wind: calm })
+    expect(sim.buildTolerances()).toEqual(PERFECT_BUILD)
+    const build = buildTolerances(pa18, 3)
+    sim.setBuildTolerances(build)
+    sim.reset({ kind: 'runway' })
+    expect(sim.buildTolerances()).toEqual(build)
   })
 })
 

@@ -1,11 +1,12 @@
 import type {
+  BuildTolerances,
   ControlInputs,
   Simulation,
   SimulationOptions,
   Spawn,
   WindSettings,
 } from './simulation'
-import { DEFAULT_WIND } from './simulation'
+import { DEFAULT_WIND, PERFECT_BUILD } from './simulation'
 
 /** A run of identical inputs held for `steps` fixed steps. */
 export interface RecordedFrame {
@@ -15,6 +16,8 @@ export interface RecordedFrame {
   wind?: WindSettings
   /** CG moved by the pilot (m behind the datum), applied with `wind`. */
   cg?: number
+  /** A new airframe rigged by the pilot, applied with `wind`. */
+  buildTolerances?: BuildTolerances
 }
 
 /**
@@ -29,13 +32,15 @@ export interface FlightRecording {
   spawn: Spawn
   /** CG, m behind the datum. Absent means the aircraft's own. */
   cg?: number
+  /** How the airframe was rigged. Absent means a perfect build. */
+  buildTolerances?: BuildTolerances
   frames: RecordedFrame[]
 }
 
 export class FlightRecorder {
   private readonly frames: RecordedFrame[] = []
   private readonly start: Omit<FlightRecording, 'frames' | 'version'>
-  private pending: Pick<RecordedFrame, 'wind' | 'cg'> = {}
+  private pending: Pick<RecordedFrame, 'wind' | 'cg' | 'buildTolerances'> = {}
 
   constructor(options: SimulationOptions) {
     this.start = {
@@ -44,12 +49,13 @@ export class FlightRecorder {
       wind: { ...(options.wind ?? DEFAULT_WIND) },
       spawn: options.spawn ?? { kind: 'runway' },
       ...(options.cg !== undefined && { cg: options.cg }),
+      ...(options.buildTolerances && { buildTolerances: { ...options.buildTolerances } }),
     }
   }
 
   record(inputs: ControlInputs): void {
     const last = this.frames[this.frames.length - 1]
-    const changed = this.pending.wind !== undefined || this.pending.cg !== undefined
+    const changed = Object.keys(this.pending).length > 0
     if (last && !changed && sameInputs(last.inputs, inputs)) {
       last.steps++
       return
@@ -68,6 +74,11 @@ export class FlightRecorder {
     this.pending.cg = cg
   }
 
+  /** Call when the airframe is re-rigged mid-flight (before the next `record`). */
+  setBuildTolerances(build: BuildTolerances): void {
+    this.pending.buildTolerances = { ...build }
+  }
+
   finish(): FlightRecording {
     return { version: 1, ...this.start, frames: this.frames.map((f) => ({ ...f })) }
   }
@@ -79,10 +90,12 @@ export function replay(sim: Simulation, recording: FlightRecording): void {
     throw new Error(`recording is for ${recording.aircraftId}, sim flies ${sim.aircraft.id}`)
   sim.setWind(recording.wind)
   sim.setCg(recording.cg ?? sim.aircraft.centerOfGravity[2])
+  sim.setBuildTolerances(recording.buildTolerances ?? PERFECT_BUILD)
   sim.reset(recording.spawn, recording.seed)
   for (const frame of recording.frames) {
     if (frame.wind) sim.setWind(frame.wind)
     if (frame.cg !== undefined) sim.setCg(frame.cg)
+    if (frame.buildTolerances) sim.setBuildTolerances(frame.buildTolerances)
     for (let i = 0; i < frame.steps; i++) sim.step(frame.inputs)
   }
 }

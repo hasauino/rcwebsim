@@ -8,7 +8,7 @@ import { MODE_LAYOUT, type StickMode } from '../input/transmitter'
 
 const settingsStore = useSettings()
 const tx = computed(() => settingsStore.transmitterFor(pa18.id, pa18.lowRates))
-const { channels } = storeToRefs(useFlight())
+const { channels, radioIsTransmitter } = storeToRefs(useFlight())
 
 const modes: StickMode[] = [1, 2, 3, 4]
 const describe = (mode: StickMode) => {
@@ -17,6 +17,19 @@ const describe = (mode: StickMode) => {
   return `left: ${left.join(' + ')}`
 }
 const names = ['aileron', 'elevator', 'rudder'] as const
+/** The channel monitor: the receiver's channels as servo pulse widths. */
+const monitor = computed(() => {
+  const c = channels.value
+  const surface = (v = 0) => Math.round(1500 + 500 * v)
+  const travel = (v = 0) => Math.round(1000 + 1000 * v)
+  return [
+    ['Aileron', surface(c?.aileron), c?.aileron ?? 0],
+    ['Elevator', surface(c?.elevator), c?.elevator ?? 0],
+    ['Throttle', travel(c?.throttle), (c?.throttle ?? 0) * 2 - 1],
+    ['Rudder', surface(c?.rudder), c?.rudder ?? 0],
+    ['Flap', travel(c?.flap), (c?.flap ?? 0) * 2 - 1],
+  ] as const
+})
 const outputs = computed(
   () =>
     [
@@ -30,7 +43,27 @@ const outputs = computed(
 </script>
 
 <template>
-  <div class="tx">
+  <div v-if="radioIsTransmitter" class="tx">
+    <p>
+      <b>Your radio is the transmitter.</b> Its rates, expo, trims, mixes and throttle cut fly the
+      plane, so trim with your radio's trim buttons. The sim's transmitter settings are set aside
+      until you fly with the keyboard, touch or a gamepad again.
+    </p>
+    <div class="outputs">
+      <div v-for="[label, us, v] in monitor" :key="label" class="out monitor">
+        <span>{{ label }}</span>
+        <div class="bar">
+          <div :style="{ left: `${50 + Math.min(v, 0) * 50}%`, width: `${Math.abs(v) * 50}%` }" />
+        </div>
+        <small>{{ us }} µs</small>
+      </div>
+    </div>
+    <p class="hint">
+      The channels as the receiver sees them. A stick at rest away from 1500 µs is trim, which is
+      how a trimmed-out plane should read.
+    </p>
+  </div>
+  <div v-else class="tx">
     <label class="row">
       <span>Stick mode</span>
       <select v-model.number="tx.mode">
@@ -129,6 +162,10 @@ label {
   display: grid;
   gap: 6px;
 }
+p {
+  margin: 0;
+  font-size: 13px;
+}
 b {
   color: var(--accent);
 }
@@ -168,6 +205,13 @@ small {
   align-items: center;
   font-size: 12px;
   color: var(--muted);
+}
+.out.monitor {
+  grid-template-columns: 70px 1fr 70px;
+  gap: 8px;
+}
+.out.monitor small {
+  text-align: right;
 }
 .bar {
   position: relative;

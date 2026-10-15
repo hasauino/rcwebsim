@@ -209,6 +209,7 @@ export const pa18: AircraftSpec = {
     ],
   },
   servo: { secondsPer60Deg: 0.12, slopDeg: 0.4 },
+  buildTolerance: { aileronDeg: 0.5, elevatorDeg: 0.75, rudderDeg: 1 },
 
   collision: [
     { name: 'cabin', halfExtents: [0.06, 0.11, 0.3], position: [0, -0.09, 0.05] },
@@ -332,6 +333,12 @@ export const pa18: AircraftSpec = {
     'battery.cellResistance': { basis: 'estimated', note: '35C pack' },
     'battery.ocvCurve': { basis: 'estimated', note: 'generic LiPo discharge curve' },
     servo: { basis: 'estimated', note: 'Six 17 g servos (sourced); speed/slop typical' },
+    buildTolerance: {
+      basis: 'estimated',
+      note:
+        'Linkages set by eye on a foam ARF: a maiden flight typically needs a few trim clicks ' +
+        'per axis. The band keeps the worst case within the radio trim range',
+    },
     collision: { basis: 'derived', source: MODEL, note: 'Boxes around the model airframe' },
     crashSpeed: { basis: 'estimated', note: 'Foam airframe / prop survive bumps below ~3 m/s' },
     lowRates: { basis: 'derived', source: FMS_MANUAL, note: 'low/high rate throw ratios' },
