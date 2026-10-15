@@ -10,6 +10,7 @@ import {
   type ControlInputs,
   type Simulation,
   type Spawn,
+  type SpawnKind,
   type Telemetry,
 } from '../sim/simulation'
 import type { useFlight } from '../stores/flight'
@@ -23,6 +24,8 @@ type FlightStore = ReturnType<typeof useFlight>
 /** How often the Vue UI is refreshed from the sim, s. */
 const UI_INTERVAL = 1 / 15
 const HISTORY_SECONDS = 20
+/** Where the throttle stick starts for each spawn. */
+const LAUNCH_THROTTLE: Record<SpawnKind, number> = { runway: 0, air: 0.5, hand: 1 }
 
 const position = new Vector3()
 const quaternion = new Quaternion()
@@ -88,8 +91,9 @@ export class FlightApp {
       // Looked up each time: resetting settings replaces the object.
       () => this.settings.gamepads,
       {
-        reset: () => this.reset({ kind: 'runway' }),
-        airStart: () => this.reset({ kind: 'air' }),
+        reset: () => this.restart('runway'),
+        airStart: () => this.restart('air'),
+        handLaunch: () => this.restart('hand'),
         camera: () => this.cycleCamera(),
         pause: () => this.togglePause(),
         debug: () => (this.settings.debug.overlay = !this.settings.debug.overlay),
@@ -118,16 +122,29 @@ export class FlightApp {
     this.world.renderer.setAnimationLoop((time) => this.frame(time))
   }
 
-  reset(spawn: Spawn): void {
+  /**
+   * Restarts the flight: on the runway, in the circuit, or thrown from the
+   * pilot's hand where they stand, at the launch speed from settings.
+   */
+  restart(kind: SpawnKind): void {
+    const spawn: Spawn =
+      kind === 'hand'
+        ? {
+            kind,
+            speed: this.settings.launch.speed,
+            from: { x: this.pilot.eye.x, z: this.pilot.eye.z },
+          }
+        : { kind }
     this.spawn = spawn
     this.sim.setWind({ ...this.settings.wind })
     this.sim.reset(spawn)
     this.runner.snap()
     this.world.cameras.snap()
-    // Idle on the runway; circuit power for an air start. (A transmitter's
-    // non-centring throttle stick overrides this as soon as it is read.)
-    this.input.setThrottle(spawn.kind === 'air' ? 0.5 : 0)
-    if (spawn.kind === 'air') this.transmitterState.throttleHold = false
+    // Idle on the runway, circuit power for an air start, and full power off
+    // the hand. (A transmitter's non-centring throttle stick overrides this
+    // as soon as it is read.)
+    this.input.setThrottle(LAUNCH_THROTTLE[kind])
+    if (kind !== 'runway') this.transmitterState.throttleHold = false
     this.newRecording()
   }
 

@@ -336,9 +336,9 @@ const percent = (v: number) => `${v > 0 ? '+' : ''}${Math.round(v * 100)}%`
       <p class="muted">
         Arrows: aileron and elevator · A/D: rudder · W/S: throttle · hold Shift for fine control · F
         flaps · E rates · H throttle hold · trims I/K elevator, J/L aileron, U/O rudder · R reset ·
-        T air start · C camera · P pause · G aero overlay. Q walk mode: W/A/S/D walk the pilot round
-        the field instead of flying throttle and rudder, Shift runs, the arrows still fly · B back
-        to the pilot station.
+        T air start · Y hand launch · C camera · P pause · G aero overlay. Q walk mode: W/A/S/D walk
+        the pilot round the field instead of flying throttle and rudder, Shift runs, the arrows
+        still fly · B back to the pilot station.
       </p>
     </details>
 

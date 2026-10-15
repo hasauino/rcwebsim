@@ -617,6 +617,21 @@ describe('walk mode', () => {
     expect(pilotStation).toHaveBeenCalledOnce()
   })
 
+  it('restarts from the runway with R, in the air with T and from the hand with Y', () => {
+    const reset = vi.fn()
+    const airStart = vi.fn()
+    const handLaunch = vi.fn()
+    const { devices } = transmitter(2, { reset, airStart, handLaunch })
+    const win = fakeWindow(devices)
+    win.keyDown('KeyY')
+    expect(handLaunch).toHaveBeenCalledOnce()
+    win.keyDown('KeyR')
+    win.keyDown('KeyT')
+    expect(reset).toHaveBeenCalledOnce()
+    expect(airStart).toHaveBeenCalledOnce()
+    expect(handLaunch).toHaveBeenCalledOnce()
+  })
+
   afterEach(() => vi.unstubAllGlobals())
 })
 

@@ -4,24 +4,34 @@ import { storeToRefs } from 'pinia'
 import { useSettings } from '../stores/settings'
 import { useFlight } from '../stores/flight'
 import { pa18 } from '../sim/aircraft/pa18'
+import { HAND_LAUNCH_SPEED, type SpawnKind } from '../sim/simulation'
 import ControlsTab from './ControlsTab.vue'
 import TransmitterTab from './TransmitterTab.vue'
 import BalanceTab from './BalanceTab.vue'
 
 const emit = defineEmits<{
   close: []
-  reset: [kind: 'runway' | 'air']
+  restart: [kind: SpawnKind]
   downloadRecording: []
 }>()
 
 const { settings } = useSettings()
 const { renderer } = storeToRefs(useFlight())
-const tabs = ['Controls', 'Transmitter', 'Balance', 'Wind', 'View', 'Debug', 'Credits'] as const
+const tabs = [
+  'Controls',
+  'Transmitter',
+  'Balance',
+  'Wind',
+  'Launch',
+  'View',
+  'Debug',
+  'Credits',
+] as const
 const tab = ref<(typeof tabs)[number]>('Controls')
 const credit = pa18.model.credit
 
-function restart(kind: 'runway' | 'air') {
-  emit('reset', kind)
+function restart(kind: SpawnKind) {
+  emit('restart', kind)
   emit('close')
 }
 </script>
@@ -69,6 +79,27 @@ function restart(kind: 'runway' | 'air') {
             />
           </label>
           <p class="hint">Turbulence follows the Dryden model: stronger wind, stronger gusts.</p>
+        </div>
+
+        <div v-else-if="tab === 'Launch'" class="form">
+          <label>
+            <span
+              >Hand launch speed <b>{{ settings.launch.speed.toFixed(1) }} m/s</b></span
+            >
+            <input
+              v-model.number="settings.launch.speed"
+              type="range"
+              min="2"
+              max="15"
+              step="0.5"
+            />
+          </label>
+          <p class="hint">
+            How hard the pilot throws, at full power, down the runway heading from where they stand.
+            A headwind adds to it. A firm throw ({{ HAND_LAUNCH_SPEED }} m/s) climbs away hands off.
+            A weaker throw sinks towards the ground: hold the nose up gently, wings level, while the
+            motor drags it clear. Pull too hard and it stalls. Throw with <kbd>Y</kbd>.
+          </p>
         </div>
 
         <div v-else-if="tab === 'View'" class="form">
@@ -159,6 +190,7 @@ function restart(kind: 'runway' | 'air') {
       <footer>
         <button @click="restart('runway')">Restart on runway</button>
         <button @click="restart('air')">Air start</button>
+        <button @click="restart('hand')">Hand launch</button>
         <button class="primary" @click="emit('close')">Fly</button>
       </footer>
     </div>

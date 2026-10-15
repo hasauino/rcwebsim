@@ -6,6 +6,7 @@ import { useFlight } from '../stores/flight'
 import { useSettings } from '../stores/settings'
 import { isTyping, type StickSide, type SwitchAction } from '../input/devices'
 import { pa18 } from '../sim/aircraft/pa18'
+import type { SpawnKind } from '../sim/simulation'
 import HudPanel from './HudPanel.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import DebugGraphs from './DebugGraphs.vue'
@@ -73,7 +74,7 @@ function onKey(e: KeyboardEvent) {
 window.addEventListener('keydown', onKey)
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
-const reset = (kind: 'runway' | 'air') => app?.reset({ kind })
+const restart = (kind: SpawnKind) => app?.restart(kind)
 const togglePause = () => app?.togglePause()
 const touchDown = (side: StickSide) => app?.input.touchDown(side)
 const touchMove = (side: StickSide, dx: number, dy: number) => app?.input.touchMove(side, dx, dy)
@@ -124,7 +125,7 @@ const downloadRecording = () => {
         @touch-move="touchMove"
         @touch-up="touchUp"
         @switch="pressSwitch"
-        @air-start="reset('air')"
+        @restart="restart"
         @pause="togglePause"
       />
 
@@ -144,9 +145,10 @@ const downloadRecording = () => {
       </div>
 
       <div v-if="telemetry?.crashed" class="banner crash">
-        <template v-if="showTouchSticks">Crashed — tap Runway or Air start</template>
+        <template v-if="showTouchSticks">Crashed — tap Runway, Air start or Hand launch</template>
         <template v-else>
-          Crashed — press <kbd>R</kbd> to reset on the runway or <kbd>T</kbd> for an air start
+          Crashed — press <kbd>R</kbd> to reset on the runway, <kbd>T</kbd> for an air start or
+          <kbd>Y</kbd> for a hand launch
         </template>
       </div>
       <div v-else-if="failsafe" class="banner crash">
@@ -160,7 +162,7 @@ const downloadRecording = () => {
       <SettingsPanel
         v-if="settingsOpen"
         @close="settingsOpen = false"
-        @reset="reset"
+        @restart="restart"
         @download-recording="downloadRecording"
       />
     </template>

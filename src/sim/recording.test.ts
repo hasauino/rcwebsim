@@ -34,6 +34,25 @@ describe('flight recording', () => {
     expect(fresh.state()).toEqual(sim.state())
   })
 
+  it('replays a hand launch from where the pilot stood, at its launch speed', async () => {
+    const options = {
+      aircraft: pa18,
+      seed: 7,
+      spawn: { kind: 'hand' as const, speed: 5, from: { x: -20, z: 3 } },
+    }
+    const sim = await createSimulation(options)
+    const recorder = new FlightRecorder(options)
+    const inputs = { throttle: 1, aileron: 0, elevator: 0.2, rudder: 0, flap: 0 }
+    for (let i = 0; i < 1000; i++) {
+      recorder.record(inputs)
+      sim.step(inputs)
+    }
+
+    const fresh = await createSimulation({ aircraft: pa18 })
+    replay(fresh, JSON.parse(JSON.stringify(recorder.finish())))
+    expect(fresh.state()).toEqual(sim.state())
+  })
+
   it('replays wind changes made during the flight', async () => {
     const options = {
       aircraft: pa18,

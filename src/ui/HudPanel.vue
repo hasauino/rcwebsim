@@ -115,8 +115,8 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
         rud
       </div>
       <div>
-        <kbd>R</kbd> runway · <kbd>T</kbd> air start · <kbd>C</kbd> camera · <kbd>V</kbd> full
-        screen
+        <kbd>R</kbd> runway · <kbd>T</kbd> air start · <kbd>Y</kbd> hand launch ·
+        <kbd>C</kbd> camera · <kbd>V</kbd> full screen
       </div>
       <div>
         <kbd>Q</kbd> walk mode: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk,

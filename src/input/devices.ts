@@ -168,6 +168,7 @@ export type TrimChannel = 'aileron' | 'elevator' | 'rudder'
 export interface InputEvents {
   reset?: () => void
   airStart?: () => void
+  handLaunch?: () => void
   camera?: () => void
   pause?: () => void
   debug?: () => void
@@ -706,6 +707,9 @@ export class InputDevices {
         break
       case 'KeyT':
         this.events.airStart?.()
+        break
+      case 'KeyY':
+        this.events.handLaunch?.()
         break
       case 'KeyC':
         this.pressSwitch('camera')

@@ -5,6 +5,7 @@ import type { DeviceProfile } from '../input/devices'
 import type { AircraftSpec } from '../sim/aircraft/types'
 import {
   DEFAULT_WIND,
+  HAND_LAUNCH_SPEED,
   PERFECT_BUILD,
   buildTolerances,
   type BuildTolerances,
@@ -32,6 +33,8 @@ export interface Settings {
     pad: string | null
   }
   wind: WindSettings
+  /** Hand launch: how hard the pilot throws, m/s. */
+  launch: { speed: number }
   camera: { mode: CameraMode; autoZoom: boolean; fov: number }
   graphics: { quality: Quality; shadows: boolean; grass: boolean }
   debug: { overlay: boolean; graphs: boolean }
@@ -59,6 +62,7 @@ function defaults(): Settings {
     gamepads: {},
     controls: { touch: 'auto', pad: null },
     wind: { ...DEFAULT_WIND },
+    launch: { speed: HAND_LAUNCH_SPEED },
     camera: { mode: 'pilot', autoZoom: true, fov: 50 },
     graphics: { quality: 'medium', shadows: true, grass: true },
     debug: { overlay: false, graphs: false },
@@ -77,6 +81,7 @@ function load(): Settings {
       ...saved,
       controls: { ...base.controls, ...saved.controls },
       wind: { ...base.wind, ...saved.wind },
+      launch: { ...base.launch, ...saved.launch },
       camera: { ...base.camera, ...saved.camera },
       graphics: { ...base.graphics, ...saved.graphics },
       debug: { ...base.debug, ...saved.debug },

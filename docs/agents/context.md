@@ -18,7 +18,7 @@ Read when planning new work or judging whether something is in scope. The design
 | Crashes           | Detect, show a message, reset by key. Planned for later: break-apart, then cumulative damage.                                                                                |
 | Lighting          | A fixed sunny afternoon. The sun direction is one value (`SUN` in `render/sky.ts`) so a time-of-day setting can drive it later.                                              |
 | UI                | Boots straight into the field. Settings overlay plus HUD. No menu flow until there is a second aircraft or field.                                                            |
-| Spawns            | Runway start (default) and air start. No hand launch.                                                                                                                        |
+| Spawns            | Runway start (default), air start, and hand launch at a launch speed the pilot sets.                                                                                         |
 | Recording         | Recorded for tests and download only. No playback UI in v1.                                                                                                                  |
 | Audio             | Basic synthesised motor and prop sound.                                                                                                                                      |
 | Tooling           | npm, Vite, TS strict, ESLint and Prettier, Vitest, Husky pre-commit (lint-staged, typecheck, tests). Deploys to GitHub Pages from `main`.                                    |
@@ -32,6 +32,7 @@ The owner tends to accept well-argued recommendations. Bring a recommendation wi
 - **Real radios.** A transmitter on a USB sim cable flies as the transmitter, with the sim as its receiver (ADR-0012): radio setup by moving each control, switches on axes, a channel monitor and a receiver failsafe. "Airframe needs trimming" (Balance tab) builds the plane off true so there is trimming to practise. Not yet tried with a real cable.
 - **Browser app** deployed at https://hassan.umari.dev/rcwebsim/. It is an installable PWA and plays offline after the first load.
 - **Animated model.** The prop spins (blades, then a blur disc), and the ailerons, flaps, elevator and rudder follow their servos. `scripts/split-model.ts` makes the split model from the export in `models-src/`.
+- **Hand launch.** Thrown from where the pilot stands at a set launch speed (default 11 m/s). Hands off at full power a firm throw climbs away and a 6 m/s one flies into the ground. The motor starts from rest at release, so it loses about 0.3 s of spool-up a real pilot would already have.
 - **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.
 
 ## Open work, roughly by value

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useFlight } from '../stores/flight'
 import type { StickSide, SwitchAction } from '../input/devices'
+import type { SpawnKind } from '../sim/simulation'
 import { MODE_LAYOUT, type Gimbal, type StickChannel, type StickMode } from '../input/transmitter'
 
 const props = defineProps<{ mode: StickMode }>()
@@ -11,7 +12,7 @@ const emit = defineEmits<{
   touchMove: [side: StickSide, dx: number, dy: number]
   touchUp: [side: StickSide]
   switch: [action: SwitchAction]
-  airStart: []
+  restart: [kind: SpawnKind]
   pause: []
 }>()
 
@@ -119,8 +120,9 @@ onBeforeUnmount(() => {
       <button class="panel" @click="emit('pause')">
         {{ status === 'paused' ? 'Resume' : 'Pause' }}
       </button>
-      <button class="panel" @click="emit('switch', 'reset')">Runway</button>
-      <button class="panel" @click="emit('airStart')">Air start</button>
+      <button class="panel" @click="emit('restart', 'runway')">Runway</button>
+      <button class="panel" @click="emit('restart', 'air')">Air start</button>
+      <button class="panel" @click="emit('restart', 'hand')">Hand launch</button>
     </div>
   </div>
 </template>

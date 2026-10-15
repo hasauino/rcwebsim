@@ -16,7 +16,8 @@ const LIMIT = FIELD.size / 2 - 50
 /**
  * The pilot on foot. They fly from the pilot station but can walk the field
  * to watch from somewhere else; the pilot view looks out from their eyes.
- * Not sim state: where the pilot stands never changes the flight.
+ * Not sim state: where the pilot stands changes the flight only through
+ * a hand launch, which records the spot it was thrown from.
  */
 export class Pilot {
   /** Eye position, world frame. */

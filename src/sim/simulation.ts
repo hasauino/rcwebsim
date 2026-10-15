@@ -30,7 +30,31 @@ export interface WindSettings {
   turbulence: number
 }
 
-export type Spawn = { kind: 'runway' } | { kind: 'air'; altitude?: number; speed?: number }
+export type Spawn =
+  | { kind: 'runway' }
+  | { kind: 'air'; altitude?: number; speed?: number }
+  | {
+      kind: 'hand'
+      /** Launch speed, m/s. A weak throw leaves the plane short of flying speed. */
+      speed?: number
+      /** Where the pilot stands, world x/z. Defaults to the pilot station. */
+      from?: { x: number; z: number }
+    }
+
+/**
+ * Default launch speed, m/s: a firm throw with a step or two. The pilot's
+ * technique, not the airframe's; for the PA-18 it is about 1.5x the 1 g stall
+ * speed, so the plane climbs away hands off at full power.
+ */
+export type SpawnKind = Spawn['kind']
+
+export const HAND_LAUNCH_SPEED = 11
+/** Datum height at release: the fuselage held overhead, the wing above the hand. */
+const RELEASE_HEIGHT = 2
+/** The pilot throws a little nose-up, with the arm out ahead and to the right. */
+const RELEASE_PITCH = 5 * DEG
+const RELEASE_AHEAD = 0.8
+const RELEASE_RIGHT = 0.6
 
 export interface SimulationOptions {
   aircraft: AircraftSpec
@@ -333,6 +357,16 @@ export class Simulation {
       )
       p.set(x, terrainHeight(x, z) - lowest + 0.002, z)
       this.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    } else if (spawn.kind === 'hand') {
+      // Thrown down the runway heading from the pilot's raised hand.
+      const from = spawn.from ?? FIELD.pilotStation
+      q.setFromEuler(new Euler(RELEASE_PITCH, -headingDeg * DEG, 0, 'YXZ'))
+      const ahead = tmp.set(0, 0, -1).applyQuaternion(q).setY(0).normalize()
+      const releaseX = from.x + ahead.x * RELEASE_AHEAD - ahead.z * RELEASE_RIGHT
+      const releaseZ = from.z + ahead.z * RELEASE_AHEAD + ahead.x * RELEASE_RIGHT
+      p.set(releaseX, terrainHeight(releaseX, releaseZ) + RELEASE_HEIGHT, releaseZ)
+      const speed = spawn.speed ?? HAND_LAUNCH_SPEED
+      this.body.setLinvel(tmp.set(0, 0, -speed).applyQuaternion(q), true)
     } else {
       // Downwind of the runway, flying the circuit east.
       const altitude = spawn.altitude ?? 40

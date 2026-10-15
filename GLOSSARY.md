@@ -17,7 +17,7 @@ Looking at the aircraft from where the pilot stands, the pilot station unless th
 _Avoid_: ground camera, tower view
 
 **Walk mode**:
-The pilot walking the field on foot to watch from somewhere else, while the aircraft keeps flying. It moves the pilot view, never the flight.
+The pilot walking the field on foot to watch from somewhere else, while the aircraft keeps flying. It moves the pilot view, never the flight in progress; the next hand launch is thrown from where they stand.
 _Avoid_: free camera, fly-cam
 
 **Chase view**:
@@ -30,6 +30,10 @@ Beginning a flight at rest at the end of the runway, ready for takeoff.
 **Air start**:
 Beginning a flight already airborne in the circuit at a flying speed.
 _Avoid_: air spawn, mid-air reset
+
+**Hand launch**:
+Beginning a flight thrown from the pilot's raised hand where they stand, at full power, down the runway heading. How hard they throw is the _launch speed_; too weak a throw sinks back to the ground.
+_Avoid_: throw start, catapult
 
 **Crash**:
 The airframe (not the wheels) hitting something hard enough to break a foam model; power is cut until reset.

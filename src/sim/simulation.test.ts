@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { pa18 } from './aircraft/pa18'
 import { balance, neutralPoint } from './balance'
+import { FIELD } from './field'
 import {
   PERFECT_BUILD,
   buildTolerances,
@@ -137,6 +138,66 @@ describe('Simulation: takeoff', () => {
     // A light-wing-loading Cub at full power: well inside a 120 m club runway.
     expect(liftoff!).toBeLessThan(60)
     expect(worstHeadingError).toBeLessThan(15)
+  })
+})
+
+describe('Simulation: hand launch', () => {
+  it('leaves the pilot’s hand above head height, wings level, at the throw speed', async () => {
+    const sim = await createSimulation({ aircraft: pa18, wind: calm, spawn: { kind: 'hand' } })
+    const t = sim.telemetry()
+    const p = sim.state().position
+
+    // Thrown from beside the pilot station, down the runway heading.
+    expect(Math.hypot(p.x - FIELD.pilotStation.x, p.z - FIELD.pilotStation.z)).toBeLessThan(2)
+    expect(t.altitude).toBeGreaterThan(1.5)
+    expect(t.altitude).toBeLessThan(2.5)
+    expect(t.headingDeg).toBeCloseTo(FIELD.runwayStart.headingDeg, 0)
+    expect(Math.abs(t.rollDeg)).toBeLessThan(0.5)
+    expect(t.pitchDeg).toBeGreaterThan(0)
+    expect(t.pitchDeg).toBeLessThan(15)
+    expect(t.airspeed).toBeGreaterThan(8)
+    expect(t.wheelsOnGround).toEqual([false, false, false])
+
+    sim.reset({ kind: 'hand', speed: 4, from: { x: 30, z: -5 } })
+    const weak = sim.state().position
+    expect(sim.telemetry().airspeed).toBeCloseTo(4, 1)
+    expect(Math.hypot(weak.x - 30, weak.z + 5)).toBeLessThan(2)
+  })
+
+  it('climbs away hands off from a firm throw at full power', async () => {
+    const sim = await createSimulation({ aircraft: pa18, wind: calm, spawn: { kind: 'hand' } })
+    let lowest = Infinity
+    run(sim, 4, (s) => {
+      lowest = Math.min(lowest, s.telemetry().altitude)
+      return { ...idle, throttle: 1 }
+    })
+    expect(sim.state().crashed).toBe(false)
+    expect(lowest).toBeGreaterThan(1)
+    expect(sim.telemetry().altitude).toBeGreaterThan(15)
+  })
+
+  it('sinks into the ground from a weak throw unless the pilot holds the nose up', async () => {
+    const sim = await createSimulation({
+      aircraft: pa18,
+      wind: calm,
+      spawn: { kind: 'hand', speed: 6 },
+    })
+    // Hands off, it noses down for flying speed it has no height to find.
+    run(sim, 2, () => ({ ...idle, throttle: 1 }))
+    expect(sim.state().crashed).toBe(true)
+
+    // Held at a gentle climb attitude, wings level, the motor drags it clear.
+    sim.reset({ kind: 'hand', speed: 6 })
+    let lowest = Infinity
+    run(sim, 5, (s) => {
+      const t = s.telemetry()
+      lowest = Math.min(lowest, t.altitude)
+      const elevator = Math.max(-1, Math.min(1, 0.04 * (8 - t.pitchDeg) - 0.015 * t.pitchRateDeg))
+      return wingsLevel(s, { throttle: 1, elevator })
+    })
+    expect(sim.state().crashed).toBe(false)
+    expect(lowest).toBeLessThan(1.8)
+    expect(sim.telemetry().altitude).toBeGreaterThan(10)
   })
 })
 
