@@ -38,4 +38,18 @@ describe('validateAircraft', () => {
       'surfaces.wing.controls.aileron needs throwMm or throwDeg',
     )
   })
+
+  it('reports a control surface driven by the throttle channel', () => {
+    const spec = clone(pa18)
+    spec.surfaces[0]!.controls[0]!.channel = 'throttle'
+    expect(validateAircraft(spec)).toContain(
+      'surfaces.wing.controls.aileron cannot be driven by the throttle',
+    )
+  })
+
+  it('requires a source for values marked as sourced', () => {
+    const spec = clone(pa18)
+    spec.provenance.mass = { basis: 'sourced' }
+    expect(validateAircraft(spec)).toContain('provenance "mass" is sourced but names no source')
+  })
 })

@@ -163,9 +163,14 @@ export interface ModelBinding {
   scale: number
   rotationDeg: Vec3Tuple
   offset: Vec3Tuple
-  /** glTF node names that animate. */
+  /**
+   * glTF nodes that animate. Axes are in each node's local frame. Control
+   * keys match telemetry deflections ("aileron.left", "rudder.center").
+   * Positive deflection is trailing edge towards -normal (down on wings,
+   * right on the fin), i.e. a right-handed rotation about +hingeAxis.
+   */
   nodes: {
-    propeller?: string
+    propeller?: { node: string; axis: Vec3Tuple }
     controls?: Record<string, { node: string; hingeAxis: Vec3Tuple }>
   }
   credit: { title: string; author: string; url: string; license: string }
@@ -196,8 +201,11 @@ export interface AircraftSpec {
   battery: BatterySpec
   servo: ServoSpec
   collision: CollisionShapeSpec[]
-  /** Impact force (N) on the airframe that counts as a crash. */
-  crashForce: number
+  /**
+   * Airframe impact speed (m/s) that counts as a crash: contact impulse on
+   * anything but the wheels exceeding mass x crashSpeed within 0.1 s.
+   */
+  crashSpeed: number
   /** Default dual-rate percentages for low rates, from the manual. */
   lowRates: Partial<Record<Channel, number>>
   model: ModelBinding

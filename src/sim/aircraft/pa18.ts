@@ -2,6 +2,7 @@ import type { AircraftSpec } from './types'
 
 const FMS_MANUAL =
   'FMS 1700mm PA-18 manual FMM110PF (towerhobbies.com/.../Manuals/FMM110PF-Manual-MULTI.pdf)'
+const MODEL = 'helijah PA-18 glTF, measured from vertices and scaled x0.1586 (1.7 m span)'
 const JSBSIM_J3 =
   'JSBSim J3Cub.xml (github.com/JSBSim-Team/jsbsim/blob/master/aircraft/J3Cub/J3Cub.xml)'
 
@@ -14,7 +15,7 @@ export const pa18: AircraftSpec = {
   id: 'pa18',
   name: 'PA-18 Super Cub (1.7 m)',
   mass: 2.1,
-  centerOfGravity: [0, -0.07, 0.082],
+  centerOfGravity: [0, -0.09, 0.082],
   inertia: [0.1, 0.18, 0.09],
 
   surfaces: [
@@ -27,7 +28,7 @@ export const pa18: AircraftSpec = {
       tipChord: 0.235,
       sweepDeg: 0,
       dihedralDeg: 1.5,
-      incidenceDeg: 1.5,
+      incidenceDeg: 0,
       twistDeg: 0,
       mirrored: true,
       vertical: false,
@@ -60,17 +61,17 @@ export const pa18: AircraftSpec = {
     {
       name: 'stabiliser',
       airfoil: 'naca0009',
-      root: [0, -0.1, 0.67],
-      semiSpan: 0.23,
-      rootChord: 0.14,
+      root: [0, -0.046, 0.66],
+      semiSpan: 0.229,
+      rootChord: 0.178,
       tipChord: 0.12,
       sweepDeg: 0,
       dihedralDeg: 0,
-      incidenceDeg: 1.5,
+      incidenceDeg: 0,
       twistDeg: 0,
       mirrored: true,
       vertical: false,
-      strips: 5,
+      strips: 8,
       oswald: 0.8,
       downwashFrom: 'wing',
       controls: [
@@ -89,19 +90,19 @@ export const pa18: AircraftSpec = {
     {
       name: 'fin',
       airfoil: 'naca0009',
-      root: [0, -0.08, 0.72],
-      semiSpan: 0.2,
-      rootChord: 0.16,
-      tipChord: 0.08,
-      sweepDeg: 25,
+      root: [0, -0.044, 0.66],
+      semiSpan: 0.166,
+      rootChord: 0.194,
+      tipChord: 0.09,
+      sweepDeg: 30,
       dihedralDeg: 0,
       incidenceDeg: 0,
       twistDeg: 0,
       mirrored: false,
       vertical: true,
-      strips: 5,
+      strips: 8,
       oswald: 0.8,
-      effectiveAspectRatio: 3.3,
+      effectiveAspectRatio: 2.3,
       controls: [
         {
           name: 'rudder',
@@ -119,7 +120,7 @@ export const pa18: AircraftSpec = {
   bodies: [
     {
       name: 'fuselage',
-      position: [0, -0.06, 0.25],
+      position: [0, -0.08, 0.25],
       axialCdA: 0.014,
       sideArea: 0.14,
       topArea: 0.1,
@@ -127,7 +128,7 @@ export const pa18: AircraftSpec = {
     },
     {
       name: 'gearAndStruts',
-      position: [0, -0.22, 0.02],
+      position: [0, -0.2, 0.01],
       axialCdA: 0.008,
       sideArea: 0.012,
       topArea: 0.004,
@@ -138,9 +139,9 @@ export const pa18: AircraftSpec = {
   wheels: [
     {
       name: 'mainRight',
-      attach: [0.18, -0.29, 0],
-      travel: 0.04,
-      radius: 0.045,
+      attach: [0.141, -0.25, 0.0105],
+      travel: 0.02,
+      radius: 0.036,
       springRate: 1800,
       damping: 40,
       rollingResistance: 0.04,
@@ -148,9 +149,9 @@ export const pa18: AircraftSpec = {
     },
     {
       name: 'mainLeft',
-      attach: [-0.18, -0.29, 0],
-      travel: 0.04,
-      radius: 0.045,
+      attach: [-0.141, -0.25, 0.0105],
+      travel: 0.02,
+      radius: 0.036,
       springRate: 1800,
       damping: 40,
       rollingResistance: 0.04,
@@ -158,9 +159,9 @@ export const pa18: AircraftSpec = {
     },
     {
       name: 'tail',
-      attach: [0, -0.17, 0.95],
-      travel: 0.02,
-      radius: 0.02,
+      attach: [0, -0.1035, 0.819],
+      travel: 0.015,
+      radius: 0.015,
       springRate: 600,
       damping: 8,
       rollingResistance: 0.05,
@@ -174,7 +175,7 @@ export const pa18: AircraftSpec = {
     pitch: 0.1905,
     blades: 2,
     airfoil: 'clarky',
-    position: [0, -0.09, -0.33],
+    position: [0, -0.103, -0.23],
     rightThrustDeg: 2,
     downThrustDeg: 1.5,
     clockwiseFromBehind: true,
@@ -209,20 +210,25 @@ export const pa18: AircraftSpec = {
   servo: { secondsPer60Deg: 0.12, slopDeg: 0.4 },
 
   collision: [
-    { name: 'fuselage', halfExtents: [0.06, 0.08, 0.55], position: [0, -0.1, 0.25] },
-    { name: 'wing', halfExtents: [0.85, 0.02, 0.125], position: [0, 0, 0.125] },
-    { name: 'stabiliser', halfExtents: [0.23, 0.01, 0.065], position: [0, -0.1, 0.73] },
-    { name: 'fin', halfExtents: [0.01, 0.1, 0.08], position: [0, 0.02, 0.78] },
+    { name: 'cabin', halfExtents: [0.06, 0.11, 0.3], position: [0, -0.09, 0.05] },
+    { name: 'tailBoom', halfExtents: [0.04, 0.05, 0.235], position: [0, -0.05, 0.585] },
+    { name: 'wing', halfExtents: [0.85, 0.02, 0.128], position: [0, 0.02, 0.128] },
+    { name: 'stabiliser', halfExtents: [0.229, 0.008, 0.089], position: [0, -0.046, 0.749] },
+    { name: 'fin', halfExtents: [0.008, 0.083, 0.097], position: [0, 0.04, 0.757] },
   ],
-  crashForce: 150,
+  crashSpeed: 3,
 
   lowRates: { aileron: 0.75, elevator: 0.78, rudder: 0.71 },
 
   model: {
-    url: 'models/pa18/pa18.glb',
-    scale: 1,
-    rotationDeg: [0, 0, 0],
-    offset: [0, 0, 0],
+    // helijah's full-scale PA-18 (10.72 m span, Z-up, nose -X) scaled to 1.7 m
+    // and turned nose-forward; offset puts its wing root leading edge on the
+    // datum. The export is merged per material, so no control surface or
+    // propeller node can be animated until it is split (see README).
+    url: 'models/pa18/scene.gltf',
+    scale: 0.1586,
+    rotationDeg: [0, -90, 0],
+    offset: [0, -0.0917, 0.3107],
     nodes: {},
     credit: {
       title: 'Piper PA-18',
@@ -236,7 +242,10 @@ export const pa18: AircraftSpec = {
     mass: { basis: 'sourced', source: FMS_MANUAL, note: '~2100 g flying weight' },
     'centerOfGravity.2': { basis: 'sourced', source: FMS_MANUAL, note: 'CG 80-85 mm from LE' },
     'centerOfGravity.0': { basis: 'derived', note: 'symmetric' },
-    'centerOfGravity.1': { basis: 'estimated', note: 'high wing; CG ~70 mm below wing LE' },
+    'centerOfGravity.1': {
+      basis: 'estimated',
+      note: 'High wing, battery low in the cabin: CG ~90 mm below the wing, on the thrust line',
+    },
     inertia: {
       basis: 'estimated',
       note:
@@ -253,7 +262,10 @@ export const pa18: AircraftSpec = {
     'surfaces.wing.root': { basis: 'derived', note: 'datum' },
     'surfaces.wing.sweepDeg': { basis: 'sourced', source: JSBSIM_J3, note: 'straight wing' },
     'surfaces.wing.dihedralDeg': { basis: 'estimated', note: 'full scale ~0.85 deg; foam RC 1-2' },
-    'surfaces.wing.incidenceDeg': { basis: 'estimated', note: 'not published' },
+    'surfaces.wing.incidenceDeg': {
+      basis: 'estimated',
+      note: 'Not published; 0 deg to the thrust-line datum (only decalage matters for trim)',
+    },
     'surfaces.wing.twistDeg': { basis: 'estimated' },
     'surfaces.wing.strips': { basis: 'derived', note: 'resolution choice' },
     'surfaces.wing.oswald': { basis: 'estimated', note: 'rectangular wing' },
@@ -271,36 +283,43 @@ export const pa18: AircraftSpec = {
     },
     'surfaces.stabiliser.incidenceDeg': {
       basis: 'tuned',
-      note: 'Hands-off idle glide trims to ~12.5 m/s (simulation.test.ts)',
+      note:
+        'Zero decalage trims the hands-off idle glide to ~12.5 m/s; zero to the thrust line keeps ' +
+        'the prop wash from lifting the tail at full power on the ground',
     },
     'surfaces.stabiliser': {
-      basis: 'estimated',
-      source: JSBSIM_J3,
+      basis: 'derived',
+      source: MODEL,
       note:
-        'Scaled from full-scale tail volume (Sh/S 0.137, Vh ~0.35) to ~5.8-6 dm^2 and 0.62 m arm. ' +
-        'Elevator throw 18 mm is SOURCED (FMS manual).',
+        'Span, chord, position from the model (~6.8 dm^2; full-scale Sh/S 0.137 cross-checked ' +
+        'against JSBSim J3Cub). Elevator throw 18 mm SOURCED (FMS manual); chord fraction estimated.',
     },
     'surfaces.fin': {
-      basis: 'estimated',
-      source: JSBSIM_J3,
-      note: 'Scaled from full-scale Vv ~0.022 to ~2.4 dm^2. Rudder throw 28 mm SOURCED (FMS manual).',
+      basis: 'derived',
+      source: MODEL,
+      note:
+        'Height, chords, sweep from the model (~2.4 dm^2). Effective AR includes end-plating by ' +
+        'fuselage and stabiliser (estimated). Rudder throw 28 mm SOURCED (FMS manual).',
     },
     bodies: {
       basis: 'tuned',
       note: 'Boxy foam fuselage, windscreen, dummy engine; bush wheels, struts. Tuned for ~25 m/s top speed',
     },
     wheels: {
-      basis: 'estimated',
+      basis: 'derived',
+      source: MODEL,
       note:
-        'Taildragger geometry for ~10 deg ground attitude; stiff wire gear ~5 mm static sag; tailwheel ' +
-        'steering linked to rudder (confirmed on the 1300mm FMS manual)',
+        'Contact points and wheel sizes from the model (12 deg ground attitude). Springs/friction ' +
+        'estimated: stiff wire gear ~5 mm static sag. Tailwheel steering linked to rudder ' +
+        '(confirmed on the 1300mm FMS manual).',
     },
     'propeller.diameter': { basis: 'sourced', source: 'FMSPROP054 12x7.5 (retailer listings)' },
     'propeller.pitch': { basis: 'sourced', source: 'FMSPROP054 12x7.5 (retailer listings)' },
     'propeller.blades': { basis: 'sourced', source: 'FMSPROP054 12x7.5 (retailer listings)' },
+    'propeller.position': { basis: 'derived', source: MODEL, note: 'spinner centre' },
     propeller: {
       basis: 'estimated',
-      note: 'Position from 1136 mm fuselage; thrust angles, inertia and blade planform generic',
+      note: 'Thrust angles, inertia and blade planform generic',
     },
     'motor.kv': { basis: 'sourced', source: FMS_MANUAL, note: '3541-750KV' },
     motor: { basis: 'estimated', note: 'Rm/Io typical for a 3541 outrunner' },
@@ -311,9 +330,9 @@ export const pa18: AircraftSpec = {
     'battery.cellResistance': { basis: 'estimated', note: '35C pack' },
     'battery.ocvCurve': { basis: 'estimated', note: 'generic LiPo discharge curve' },
     servo: { basis: 'estimated', note: 'Six 17 g servos (sourced); speed/slop typical' },
-    collision: { basis: 'derived', note: 'Boxes around the airframe for crash contacts' },
-    crashForce: { basis: 'estimated' },
+    collision: { basis: 'derived', source: MODEL, note: 'Boxes around the model airframe' },
+    crashSpeed: { basis: 'estimated', note: 'Foam airframe / prop survive bumps below ~3 m/s' },
     lowRates: { basis: 'derived', source: FMS_MANUAL, note: 'low/high rate throw ratios' },
-    model: { basis: 'derived', note: 'Visual binding; filled in after inspecting the GLB' },
+    model: { basis: 'derived', source: MODEL, note: 'Visual binding' },
   },
 }

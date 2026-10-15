@@ -13,6 +13,12 @@ const INFLOW_LAG = 0.02
 /** Swirl evaluated at this fraction of tip radius. */
 const SWIRL_RADIUS = 0.7
 /**
+ * Fraction of the disc's swirl still present at the tail: the fuselage
+ * straightens the flow and the jet mixes, leaving a few degrees of sidewash
+ * at the fin (estimated).
+ */
+const SWIRL_RECOVERY = 0.4
+/**
  * Non-uniform inflow raises induced power over ideal momentum theory
  * (kappa ~1.1-1.2 for propellers and rotors).
  */
@@ -191,7 +197,7 @@ export class Propulsion {
     if (r > 1e-3 && massFlow > 0) {
       const swirl = this.torque / (this.density * massFlow * SWIRL_RADIUS * R)
       tangent.crossVectors(this.spin, radial).normalize()
-      out.addScaledVector(tangent, Math.min(swirl, local) * edge)
+      out.addScaledVector(tangent, Math.min(swirl * SWIRL_RECOVERY, local) * edge)
     }
     return out
   }

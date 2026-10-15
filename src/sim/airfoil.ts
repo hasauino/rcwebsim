@@ -18,7 +18,7 @@ export interface Coefficients {
   cm: number
 }
 
-const DEG = 180 / Math.PI
+const RAD_TO_DEG = 180 / Math.PI
 
 /**
  * Full-range (-180..180 deg) section polars from XFoil + Viterna extension
@@ -38,7 +38,7 @@ export class Airfoil {
   /** Writes coefficients for angle of attack (rad) and Reynolds number into `out`. */
   lookup(alpha: number, reynolds: number, out: Coefficients): Coefficients {
     const { start, step, count } = this.table.alphaDeg
-    let deg = alpha * DEG
+    let deg = alpha * RAD_TO_DEG
     deg = ((((deg + 180) % 360) + 360) % 360) - 180
     const f = (deg - start) / step
     const i0 = Math.min(Math.max(Math.floor(f), 0), count - 2)

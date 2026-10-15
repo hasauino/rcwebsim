@@ -11,6 +11,8 @@ import { DEFAULT_WIND } from './simulation'
 export interface RecordedFrame {
   steps: number
   inputs: ControlInputs
+  /** Wind changed by the pilot, applied before this frame's first step. */
+  wind?: WindSettings
 }
 
 /**
@@ -29,6 +31,7 @@ export interface FlightRecording {
 export class FlightRecorder {
   private readonly frames: RecordedFrame[] = []
   private readonly start: Omit<FlightRecording, 'frames' | 'version'>
+  private pendingWind: WindSettings | undefined
 
   constructor(options: SimulationOptions) {
     this.start = {
@@ -41,8 +44,19 @@ export class FlightRecorder {
 
   record(inputs: ControlInputs): void {
     const last = this.frames[this.frames.length - 1]
-    if (last && sameInputs(last.inputs, inputs)) last.steps++
-    else this.frames.push({ steps: 1, inputs: { ...inputs } })
+    if (last && !this.pendingWind && sameInputs(last.inputs, inputs)) {
+      last.steps++
+      return
+    }
+    const frame: RecordedFrame = { steps: 1, inputs: { ...inputs } }
+    if (this.pendingWind) frame.wind = this.pendingWind
+    this.pendingWind = undefined
+    this.frames.push(frame)
+  }
+
+  /** Call when the wind is changed mid-flight (before the next `record`). */
+  setWind(wind: WindSettings): void {
+    this.pendingWind = { ...wind }
   }
 
   finish(): FlightRecording {
@@ -57,6 +71,7 @@ export function replay(sim: Simulation, recording: FlightRecording): void {
   sim.setWind(recording.wind)
   sim.reset(recording.spawn, recording.seed)
   for (const frame of recording.frames) {
+    if (frame.wind) sim.setWind(frame.wind)
     for (let i = 0; i < frame.steps; i++) sim.step(frame.inputs)
   }
 }

@@ -129,12 +129,20 @@ export class Simulation {
   private readonly flightController: FlightController
   private readonly wind: Wind
   private readonly wrench = new Wrench()
+  private readonly debugVectors = {
+    airVelocity: new Vector3(),
+    aeroForce: new Vector3(),
+    thrust: new Vector3(),
+  }
   private readonly cg: Vector3
   private readonly wingRoot: Vector3
   private time = 0
   private crashed = false
   private propAngle = 0
   private loadFactor = 1
+  /** Airframe contact impulse per step over the last 0.1 s (ring buffer). */
+  private readonly impulses = new Float64Array(50)
+  private impulseIndex = 0
 
   constructor(
     private readonly rapier: Rapier,
@@ -180,12 +188,13 @@ export class Simulation {
     const density = airDensity(position.y)
 
     // Receiver -> flight controller -> servos.
+    const attitude = this.attitude()
     const channels = this.flightController.update(
       inputs,
       {
         bodyRate,
-        pitchDeg: 0,
-        rollDeg: 0,
+        pitchDeg: attitude.pitchDeg,
+        rollDeg: attitude.rollDeg,
         airspeed: bodyAirVelocity.length(),
       },
       dt,
@@ -217,6 +226,9 @@ export class Simulation {
       heightAboveGround: worldPoint.y - terrainHeight(worldPoint.x, worldPoint.z),
       servos: this.servos.position,
     })
+    this.debugVectors.airVelocity.copy(bodyAirVelocity)
+    this.debugVectors.aeroForce.copy(this.aero.force)
+    this.debugVectors.thrust.copy(thrust.force)
     worldForce.copy(this.aero.force).applyQuaternion(rotation)
     this.wrench.force.add(worldForce)
     this.wrench.torque.add(worldMoment.copy(this.aero.moment).applyQuaternion(rotation))
@@ -235,9 +247,17 @@ export class Simulation {
     this.body.addForce(this.wrench.force, true)
     this.body.addTorque(this.wrench.torque, true)
     this.world.step(this.events)
+    // Contact force at 500 Hz is impulse / dt, so a tiny bump reads as a big
+    // force. Judge crashes by impulse over a short window instead.
+    let impulse = 0
     this.events.drainContactForceEvents((e) => {
-      if (e.totalForceMagnitude() > this.aircraft.crashForce) this.crashed = true
+      impulse += e.totalForceMagnitude() * dt
     })
+    this.impulses[this.impulseIndex] = impulse
+    this.impulseIndex = (this.impulseIndex + 1) % this.impulses.length
+    let windowImpulse = 0
+    for (const v of this.impulses) windowImpulse += v
+    if (windowImpulse > this.aircraft.mass * this.aircraft.crashSpeed) this.crashed = true
     this.time += dt
   }
 
@@ -249,6 +269,7 @@ export class Simulation {
   reset(spawn: Spawn = { kind: 'runway' }, seed?: number): void {
     this.time = 0
     this.crashed = false
+    this.impulses.fill(0)
     this.propAngle = 0
     this.propulsion.reset()
     this.aero.reset()
@@ -302,9 +323,7 @@ export class Simulation {
 
   telemetry(): Telemetry {
     this.readBody()
-    const fwd = new Vector3(0, 0, -1).applyQuaternion(rotation)
-    const right = new Vector3(1, 0, 0).applyQuaternion(rotation)
-    const up = new Vector3(0, 1, 0).applyQuaternion(rotation)
+    const { pitchDeg, rollDeg, headingDeg } = this.attitude()
     const inv = rotation.clone().invert()
     const air = linearVelocity.clone().sub(this.wind.velocity).applyQuaternion(inv)
     const rate = angularVelocity.clone().applyQuaternion(inv)
@@ -319,9 +338,9 @@ export class Simulation {
     }
 
     return {
-      pitchDeg: Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z)) / DEG,
-      rollDeg: Math.atan2(-right.y, up.y) / DEG,
-      headingDeg: (Math.atan2(fwd.x, -fwd.z) / DEG + 360) % 360,
+      pitchDeg,
+      rollDeg,
+      headingDeg,
       rollRateDeg: -rate.z / DEG,
       pitchRateDeg: rate.x / DEG,
       yawRateDeg: -rate.y / DEG,
@@ -345,6 +364,18 @@ export class Simulation {
     }
   }
 
+  /**
+   * Body-frame vectors from the last step for the debug overlay: velocity
+   * through the air, total airframe aero force, prop force.
+   */
+  vectors(): {
+    readonly airVelocity: Vector3
+    readonly aeroForce: Vector3
+    readonly thrust: Vector3
+  } {
+    return this.debugVectors
+  }
+
   /** Per-strip aerodynamic state for the debug overlay (body frame). */
   strips(): readonly Strip[] {
     return this.aero.strips
@@ -353,6 +384,16 @@ export class Simulation {
   dispose(): void {
     this.events.free()
     this.world.free()
+  }
+
+  /** Euler-style attitude of the current body rotation, degrees. */
+  private attitude(): { pitchDeg: number; rollDeg: number; headingDeg: number } {
+    const fwd = tmp.set(0, 0, -1).applyQuaternion(rotation)
+    const pitchDeg = Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z)) / DEG
+    const headingDeg = (Math.atan2(fwd.x, -fwd.z) / DEG + 360) % 360
+    const rightY = tmp.set(1, 0, 0).applyQuaternion(rotation).y
+    const upY = tmp.set(0, 1, 0).applyQuaternion(rotation).y
+    return { pitchDeg, rollDeg: Math.atan2(-rightY, upY) / DEG, headingDeg }
   }
 
   private addBodyLoad(force: Vector3, point: Vector3, moment: Vector3): void {
@@ -447,7 +488,7 @@ export class Simulation {
           .setDensity(0)
           .setFriction(0.5)
           .setActiveEvents(rapier.ActiveEvents.CONTACT_FORCE_EVENTS)
-          .setContactForceEventThreshold(aircraft.crashForce),
+          .setContactForceEventThreshold(aircraft.mass * 9.81 * 0.5),
         body,
       )
     }

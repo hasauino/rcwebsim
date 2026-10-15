@@ -196,6 +196,37 @@ describe('Simulation: flight envelope', () => {
     expect(flaps).toBeLessThan(clean * 0.95)
   })
 
+  it('is statically and dynamically stable in pitch and yaw', async () => {
+    const sim = await createSimulation({
+      aircraft: pa18,
+      wind: calm,
+      spawn: { kind: 'air', altitude: 150, speed: 13 },
+    })
+    run(sim, 12, (s) => wingsLevel(s))
+    const trim = sim.telemetry()
+
+    // Kick it in yaw: sideslip builds, then weathervanes back (Cn_beta > 0).
+    let peakBeta = 0
+    run(sim, 0.4, (s) => {
+      peakBeta = Math.max(peakBeta, Math.abs(s.telemetry().betaDeg - trim.betaDeg))
+      return wingsLevel(s, { rudder: 1 })
+    })
+    run(sim, 4, (s) => {
+      peakBeta = Math.max(peakBeta, Math.abs(s.telemetry().betaDeg - trim.betaDeg))
+      return wingsLevel(s)
+    })
+    expect(peakBeta).toBeGreaterThan(4)
+    expect(Math.abs(sim.telemetry().betaDeg - trim.betaDeg)).toBeLessThan(1)
+
+    // Kick it in pitch: the short-period mode (alpha) damps within a second
+    // (Cm_alpha < 0, Cm_q < 0). The slower phugoid it excites is left alone.
+    run(sim, 0.25, (s) => wingsLevel(s, { elevator: 1 }))
+    const kicked = Math.abs(sim.telemetry().alphaDeg - trim.alphaDeg)
+    run(sim, 1, (s) => wingsLevel(s))
+    expect(kicked).toBeGreaterThan(3)
+    expect(Math.abs(sim.telemetry().alphaDeg - trim.alphaDeg)).toBeLessThan(1.5)
+  })
+
   it('rolls at a trainer-like rate on full high-rate aileron', async () => {
     const sim = await createSimulation({
       aircraft: pa18,
@@ -239,8 +270,16 @@ describe('Simulation: crashes', () => {
       wind: calm,
       spawn: { kind: 'air', altitude: 1.5, speed: 9 },
     })
-    run(sim, 4, (s) => wingsLevel(s, { elevator: 0.3 }))
-    expect(sim.telemetry().wheelsOnGround.some((w) => w)).toBe(true)
+    // Idle, holding a flare attitude: the plane sinks onto its wheels.
+    let touched = false
+    run(sim, 6, (s) => {
+      const t = s.telemetry()
+      touched ||= t.wheelsOnGround.some((w) => w)
+      const elevator = Math.max(-1, Math.min(1, 0.04 * (6 - t.pitchDeg) - 0.015 * t.pitchRateDeg))
+      return wingsLevel(s, { elevator })
+    })
+    expect(touched).toBe(true)
+    expect(sim.telemetry().altitude).toBeLessThan(0.4)
     expect(sim.state().crashed).toBe(false)
   })
 })

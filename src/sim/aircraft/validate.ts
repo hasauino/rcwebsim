@@ -33,6 +33,9 @@ export function validateAircraft(spec: AircraftSpec): string[] {
   for (const key of keys) {
     if (!leaves.some((leaf) => covers(key, leaf.path)))
       errors.push(`provenance "${key}" matches no field`)
+    const entry = provenance[key]!
+    if (entry.basis === 'sourced' && !entry.source)
+      errors.push(`provenance "${key}" is sourced but names no source`)
   }
 
   const positive = (path: string, v: number) => {
@@ -40,7 +43,7 @@ export function validateAircraft(spec: AircraftSpec): string[] {
   }
   positive('mass', spec.mass)
   spec.inertia.forEach((v, i) => positive(`inertia.${i}`, v))
-  positive('crashForce', spec.crashForce)
+  positive('crashSpeed', spec.crashSpeed)
 
   const surfaceNames = new Set(spec.surfaces.map((s) => s.name))
   for (const s of spec.surfaces) {
@@ -60,6 +63,7 @@ export function validateAircraft(spec: AircraftSpec): string[] {
         errors.push(`${cp} span range must satisfy 0 <= start < end <= 1`)
       if (c.throwMm === undefined && c.throwDeg === undefined)
         errors.push(`${cp} needs throwMm or throwDeg`)
+      if (c.channel === 'throttle') errors.push(`${cp} cannot be driven by the throttle`)
     }
   }
 
