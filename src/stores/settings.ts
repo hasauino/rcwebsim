@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive, watch } from 'vue'
 import { defaultTransmitter, type LowRates, type TransmitterSettings } from '../input/transmitter'
 import type { GamepadProfile } from '../input/devices'
+import type { AircraftSpec } from '../sim/aircraft/types'
 import { DEFAULT_WIND, type WindSettings } from '../sim/simulation'
 import type { CameraMode } from '../render/cameras'
 import type { Quality } from '../render/world'
@@ -9,6 +10,8 @@ import type { Quality } from '../render/world'
 export interface Settings {
   /** Transmitter model memory, per aircraft id. */
   transmitters: Record<string, TransmitterSettings>
+  /** CG per aircraft id, m behind the datum. Absent means the manual's. */
+  cg: Record<string, number>
   /** Axis/button mapping per gamepad id. */
   gamepads: Record<string, GamepadProfile>
   /** On-screen sticks: auto shows them on touch devices and after a touch. */
@@ -20,11 +23,17 @@ export interface Settings {
   audio: { volume: number }
 }
 
+/** The aircraft's CG as set by the pilot, m behind the datum. */
+export function cgFor(settings: Settings, aircraft: AircraftSpec): number {
+  return settings.cg[aircraft.id] ?? aircraft.centerOfGravity[2]
+}
+
 const STORAGE_KEY = 'rcfsim.settings.v1'
 
 function defaults(): Settings {
   return {
     transmitters: {},
+    cg: {},
     gamepads: {},
     controls: { touch: 'auto' },
     wind: { ...DEFAULT_WIND },

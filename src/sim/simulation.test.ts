@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pa18 } from './aircraft/pa18'
+import { balance, neutralPoint } from './balance'
 import { createSimulation, type ControlInputs, type Simulation } from './simulation'
 
 const idle: ControlInputs = { aileron: 0, elevator: 0, rudder: 0, throttle: 0, flap: 0 }
@@ -242,6 +243,89 @@ describe('Simulation: flight envelope', () => {
     // pb/2V ~0.05-0.1 for trainer ailerons at ~17 m/s -> roughly 60-200 deg/s.
     expect(peak).toBeGreaterThan(60)
     expect(peak).toBeLessThan(220)
+  })
+})
+
+describe('Simulation: balance', () => {
+  async function glideSpeed(cg: number) {
+    const sim = await createSimulation({
+      aircraft: pa18,
+      wind: calm,
+      cg,
+      spawn: { kind: 'air', altitude: 150, speed: 13 },
+    })
+    run(sim, 15, (s) => wingsLevel(s))
+    return average(sim, 8, (s) => wingsLevel(s)).airspeed
+  }
+
+  it('trims to a faster glide when nose heavy and a slower one when tail heavy', async () => {
+    const manual = await glideSpeed(pa18.centerOfGravity[2])
+    // Stick-fixed trim: moving the CG forward needs more tail download, so
+    // with the elevator fixed the plane trims at a lower lift coefficient,
+    // i.e. faster. A direction check; 0.3 m/s is just clear of settling noise.
+    expect(await glideSpeed(0.06)).toBeGreaterThan(manual + 0.3)
+    expect(await glideSpeed(0.1)).toBeLessThan(manual - 0.3)
+  })
+
+  /** Angle of attack range over the last seconds of a long fixed-elevator glide. */
+  async function fixedStickAlpha(cg: number, elevator: number) {
+    const sim = await createSimulation({
+      aircraft: pa18,
+      wind: calm,
+      cg,
+      spawn: { kind: 'air', altitude: 250, speed: 12 },
+    })
+    run(sim, 16, (s) => wingsLevel(s, { elevator }))
+    let low = Infinity
+    let high = -Infinity
+    run(sim, 4, (s) => {
+      low = Math.min(low, s.telemetry().alphaDeg)
+      high = Math.max(high, s.telemetry().alphaDeg)
+      return wingsLevel(s, { elevator })
+    })
+    return { low, high, mean: (low + high) / 2 }
+  }
+
+  it('gets more sensitive to elevator as the CG moves back', async () => {
+    // Measured with down elevator, clear of the stall where lift stops growing.
+    const swing = async (cg: number) =>
+      (await fixedStickAlpha(cg, 0)).mean - (await fixedStickAlpha(cg, -0.15)).mean
+    const manual = await swing(pa18.centerOfGravity[2])
+    const tail = await swing(0.1)
+    expect(manual).toBeGreaterThan(1)
+    // Stick-fixed theory: trim alpha per unit elevator goes as 1 / static
+    // margin, so the swing should grow by the ratio of the two margins
+    // (about 2.4x here). Allow for the lift curve's nonlinearity.
+    const predicted =
+      balance(pa18, pa18.centerOfGravity[2]).staticMargin / balance(pa18, 0.1).staticMargin
+    expect(tail / manual).toBeGreaterThan(predicted * 0.75)
+    expect(tail / manual).toBeLessThan(predicted * 1.5)
+  })
+
+  it('holds no steady flying attitude with the CG behind the neutral point', async () => {
+    const np = neutralPoint(pa18)
+    // Steady (under 1 deg of wander) at a flying angle of attack: above the
+    // zero-lift dive, below the ~14 deg section stall.
+    const steadyFlying = (alpha: { low: number; high: number; mean: number }) =>
+      alpha.high - alpha.low < 1 && alpha.mean > 2 && alpha.mean < 12
+    // Ahead of it, a fixed elevator settles to a steady angle of attack.
+    expect(steadyFlying(await fixedStickAlpha(np - 0.02, 0))).toBe(true)
+    // Behind it, every elevator setting either wallows, dives, or locks up
+    // near the stall: none trims to a normal flying angle of attack.
+    for (const elevator of [0.2, 0, -0.2, -0.4, -0.6]) {
+      const alpha = await fixedStickAlpha(np + 0.02, elevator)
+      expect(steadyFlying(alpha), `elevator ${elevator}: ${alpha.low}..${alpha.high} deg`).toBe(
+        false,
+      )
+    }
+  })
+
+  it('moves the CG when told to and keeps it through a reset', async () => {
+    const sim = await createSimulation({ aircraft: pa18, wind: calm })
+    expect(sim.centerOfGravity()).toEqual({ x: 0, y: -0.09, z: 0.082 })
+    sim.setCg(0.07)
+    sim.reset({ kind: 'runway' })
+    expect(sim.centerOfGravity().z).toBe(0.07)
   })
 })
 

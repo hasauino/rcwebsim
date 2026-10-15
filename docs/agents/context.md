@@ -28,6 +28,7 @@ The owner tends to accept well-argued recommendations. Bring a recommendation wi
 ## Current state
 
 - **Headless sim core.** All tests pass: aircraft validation, flight envelope, recording and replay, plus the touch sticks in `src/input/`.
+- **Balance.** The pilot can move the CG in settings (side view, lift point, draggable CG). It is saved per aircraft and recorded in flights.
 - **Browser app** deployed at https://hassan.umari.dev/rcwebsim/. It is an installable PWA and plays offline after the first load.
 - **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.
 

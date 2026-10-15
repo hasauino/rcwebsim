@@ -53,6 +53,10 @@ watch(
   () => app?.setWind(),
   { deep: true },
 )
+watch(
+  () => settings.cg[pa18.id],
+  () => app?.setCg(),
+)
 watch(settingsOpen, (open) => app?.setPaused(open))
 
 function onKey(e: KeyboardEvent) {

@@ -12,7 +12,7 @@ import {
   type Telemetry,
 } from '../sim/simulation'
 import type { useFlight } from '../stores/flight'
-import type { Settings } from '../stores/settings'
+import { cgFor, type Settings } from '../stores/settings'
 import { World3D } from '../render/world'
 import { FixedStepRunner } from './runner'
 
@@ -64,6 +64,7 @@ export class FlightApp {
       aircraft: this.aircraft,
       wind: { ...this.settings.wind },
       seed: this.seed,
+      cg: cgFor(this.settings, this.aircraft),
     })
     if (this.disposed) return this.sim.dispose()
     this.runner = new FixedStepRunner(this.sim)
@@ -126,6 +127,13 @@ export class FlightApp {
     this.recorder.setWind(wind)
   }
 
+  /** Applies the CG from settings, as when the battery is slid in its bay. */
+  setCg(): void {
+    const cg = cgFor(this.settings, this.aircraft)
+    this.sim.setCg(cg)
+    this.recorder.setCg(cg)
+  }
+
   togglePause(): void {
     this.paused = !this.paused
     this.flight.status = this.paused ? 'paused' : 'running'
@@ -163,6 +171,7 @@ export class FlightApp {
       seed: this.seed,
       wind: { ...this.settings.wind },
       spawn: this.spawn,
+      cg: cgFor(this.settings, this.aircraft),
     })
   }
 

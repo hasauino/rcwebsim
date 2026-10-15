@@ -14,7 +14,6 @@ import {
 } from 'three'
 import { LineBasicNodeMaterial, MeshBasicNodeMaterial } from 'three/webgpu'
 import type { Strip } from '../sim/aero'
-import type { AircraftSpec } from '../sim/aircraft/types'
 import type { Simulation } from '../sim/simulation'
 
 const NEWTONS_TO_METRES = 0.06
@@ -41,16 +40,13 @@ export class DebugOverlay {
   private readonly basisX = new Vector3()
   private readonly center = new Vector3()
   private readonly summary: LineSegments[]
-  private readonly cg: Vector3
+  private readonly cg = new Vector3()
+  private readonly cgMarker: Mesh
   private readonly strips: readonly Strip[]
 
-  constructor(
-    spec: AircraftSpec,
-    private readonly sim: Simulation,
-  ) {
+  constructor(private readonly sim: Simulation) {
     this.strips = sim.strips()
     const strips = this.strips
-    this.cg = new Vector3(...spec.centerOfGravity)
     this.group.name = 'aero-debug'
     const panelMaterial = new MeshBasicNodeMaterial({
       transparent: true,
@@ -74,13 +70,12 @@ export class DebugOverlay {
     this.arrows.renderOrder = 11
     this.group.add(this.arrows)
 
-    const cg = new Mesh(
+    this.cgMarker = new Mesh(
       new SphereGeometry(0.025, 12, 8),
       new MeshBasicNodeMaterial({ color: 0xffeb3b, depthTest: false }),
     )
-    cg.position.set(...spec.centerOfGravity)
-    cg.renderOrder = 12
-    this.group.add(cg)
+    this.cgMarker.renderOrder = 12
+    this.group.add(this.cgMarker)
 
     this.summary = SUMMARY_COLORS.map((color) => {
       const g = new BufferGeometry()
@@ -125,6 +120,9 @@ export class DebugOverlay {
       this.arrowPositions[o + 5] = s.position.z + s.force.z * NEWTONS_TO_METRES
     })
     // Velocity through the air, total aero force and thrust, all from the CG.
+    const cg = this.sim.centerOfGravity()
+    this.cg.set(cg.x, cg.y, cg.z)
+    this.cgMarker.position.copy(this.cg)
     const v = this.sim.vectors()
     const vectors = [
       { vector: v.airVelocity, scale: METRES_PER_SECOND_TO_METRES },

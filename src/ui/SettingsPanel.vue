@@ -6,6 +6,7 @@ import { useFlight } from '../stores/flight'
 import { pa18 } from '../sim/aircraft/pa18'
 import ControlsTab from './ControlsTab.vue'
 import TransmitterTab from './TransmitterTab.vue'
+import BalanceTab from './BalanceTab.vue'
 
 const emit = defineEmits<{
   close: []
@@ -15,7 +16,7 @@ const emit = defineEmits<{
 
 const { settings } = useSettings()
 const { renderer } = storeToRefs(useFlight())
-const tabs = ['Controls', 'Transmitter', 'Wind', 'View', 'Debug', 'Credits'] as const
+const tabs = ['Controls', 'Transmitter', 'Balance', 'Wind', 'View', 'Debug', 'Credits'] as const
 const tab = ref<(typeof tabs)[number]>('Controls')
 const credit = pa18.model.credit
 
@@ -40,6 +41,7 @@ function restart(kind: 'runway' | 'air') {
       <section class="body">
         <ControlsTab v-if="tab === 'Controls'" />
         <TransmitterTab v-else-if="tab === 'Transmitter'" />
+        <BalanceTab v-else-if="tab === 'Balance'" />
 
         <div v-else-if="tab === 'Wind'" class="form">
           <label>
@@ -169,6 +171,7 @@ function restart(kind: 'runway' | 'air') {
   inset: 0;
   background: rgba(1, 4, 9, 0.45);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: 16px;
 }
@@ -196,6 +199,7 @@ nav {
   display: flex;
   gap: 4px;
   flex: 1;
+  min-width: 0;
   overflow-x: auto;
 }
 nav button {

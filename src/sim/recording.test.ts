@@ -59,6 +59,47 @@ describe('flight recording', () => {
     expect(fresh.state()).toEqual(sim.state())
   })
 
+  it('replays a moved CG, including a change made during the flight', async () => {
+    const options = {
+      aircraft: pa18,
+      seed: 3,
+      cg: 0.07,
+      wind: { speed: 2, fromDeg: 90, turbulence: 0.5 },
+      spawn: { kind: 'air' as const },
+    }
+    const sim = await createSimulation(options)
+    const recorder = new FlightRecorder(options)
+    const inputs = { throttle: 0.6, aileron: 0, elevator: 0, rudder: 0, flap: 0 }
+    for (let i = 0; i < 1000; i++) {
+      if (i === 400) {
+        sim.setCg(0.095)
+        recorder.setCg(0.095)
+      }
+      recorder.record(inputs)
+      sim.step(inputs)
+    }
+
+    const fresh = await createSimulation({ aircraft: pa18 })
+    replay(fresh, JSON.parse(JSON.stringify(recorder.finish())))
+    expect(fresh.state()).toEqual(sim.state())
+    expect(fresh.centerOfGravity().z).toBe(0.095)
+  })
+
+  it("replays a recording made at the aircraft's own CG on a sim whose CG was moved", async () => {
+    const options = { aircraft: pa18, seed: 4, spawn: { kind: 'air' as const } }
+    const sim = await createSimulation(options)
+    const recorder = new FlightRecorder(options)
+    const inputs = { throttle: 0.6, aileron: 0, elevator: 0, rudder: 0, flap: 0 }
+    for (let i = 0; i < 500; i++) {
+      recorder.record(inputs)
+      sim.step(inputs)
+    }
+
+    const fresh = await createSimulation({ aircraft: pa18, cg: 0.1 })
+    replay(fresh, recorder.finish())
+    expect(fresh.state()).toEqual(sim.state())
+  })
+
   it('stores held inputs compactly', () => {
     const recorder = new FlightRecorder({ aircraft: pa18, seed: 1 })
     const held = { throttle: 0.5, aileron: 0, elevator: 0, rudder: 0, flap: 0 }

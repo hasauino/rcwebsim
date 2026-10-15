@@ -44,6 +44,10 @@ Root causes found so far, worth checking first:
 - **Swirl hitting the fin** drives ground loops at full power. `SWIRL_RECOVERY` stands in for the fuselage straightening the flow.
 - **Contact force at 500 Hz is huge for small bumps,** so crashes use impulse (ADR-0007).
 
+## Balance
+
+`sim/balance.ts` finds the stick-fixed, power-off neutral point by running the strip aerodynamics at two angles of attack. It is not a separate formula, so it follows every geometry change. The PA-18's sits at about 113 mm (46% MAC), which gives a 12% static margin at the manual's 82 mm. `Simulation.setCg` moves the CG fore and aft only, keeping mass and inertia. Behind the neutral point the plane still settles near the stall at about 14° angle of attack: that is stall-stability from the flattening lift curve, not a bug.
+
 ## Tuning a parameter
 
 Only values whose provenance basis is `estimated` or `tuned` may be tuned. Change the value, re-run `npm test`, then set the provenance basis to `tuned` with a note naming the target it hits. `sourced` values only change with a better source (ADR-0004).

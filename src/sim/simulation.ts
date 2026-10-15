@@ -13,6 +13,7 @@ import { Wind } from './wind'
 import { Wrench } from './wrench'
 
 const DEG = Math.PI / 180
+const IDENTITY = { x: 0, y: 0, z: 0, w: 1 } as const
 
 /** Receiver channel outputs: surfaces -1..1, throttle and flap 0..1. */
 export type ControlInputs = Record<Channel, number>
@@ -34,6 +35,12 @@ export interface SimulationOptions {
   wind?: WindSettings
   spawn?: Spawn
   flightController?: FlightController
+  /**
+   * CG, m behind the datum (as RC manuals measure it from the leading edge). Defaults
+   * to the aircraft's. Only the fore-aft position moves, as when the battery
+   * is slid in its bay.
+   */
+  cg?: number
 }
 
 export interface Vec3Like {
@@ -158,13 +165,14 @@ export class Simulation {
     // Scene queries only see colliders after a step.
     this.world.step()
     this.body = this.buildAircraft()
-    this.gear = new LandingGear(this.aircraft.wheels, this.cg.z)
+    this.gear = new LandingGear(this.aircraft.wheels, this.cg)
     this.propulsion = new Propulsion(this.aircraft)
     this.aero = new Aerodynamics(this.aircraft)
     this.servos = new Servos(this.aircraft.servo)
     this.flightController = options.flightController ?? passThrough
     this.wind = new Wind(options.seed ?? 1)
     this.setWind(options.wind ?? DEFAULT_WIND)
+    if (options.cg !== undefined) this.setCg(options.cg)
     this.reset(options.spawn)
   }
 
@@ -263,6 +271,20 @@ export class Simulation {
 
   setWind(wind: WindSettings): void {
     this.wind.set(wind.speed, wind.fromDeg, wind.turbulence)
+  }
+
+  /**
+   * Moves the CG fore and aft to `cg` m behind the datum. Mass and inertia
+   * stay the same. Record it with `FlightRecorder.setCg` to keep replays exact.
+   */
+  setCg(cg: number): void {
+    this.cg.z = cg
+    this.body.setAdditionalMassProperties(...this.massProperties(), true)
+  }
+
+  /** Current CG, body frame. */
+  centerOfGravity(): Vec3Like {
+    return { x: this.cg.x, y: this.cg.y, z: this.cg.z }
   }
 
   /** Restarts the flight. A new `seed` changes the turbulence sequence. */
@@ -468,16 +490,17 @@ export class Simulation {
     }
   }
 
+  /** Mass, CG, principal inertia and its frame, as Rapier takes them. */
+  private massProperties(): [number, Vec3Like, Vec3Like, { x: 0; y: 0; z: 0; w: 1 }] {
+    const [ix, iy, iz] = this.aircraft.inertia
+    return [this.aircraft.mass, this.centerOfGravity(), { x: ix, y: iy, z: iz }, IDENTITY]
+  }
+
   private buildAircraft(): RigidBody {
     const { rapier, world, aircraft } = this
     const body = world.createRigidBody(
       rapier.RigidBodyDesc.dynamic()
-        .setAdditionalMassProperties(
-          aircraft.mass,
-          { x: this.cg.x, y: this.cg.y, z: this.cg.z },
-          { x: aircraft.inertia[0], y: aircraft.inertia[1], z: aircraft.inertia[2] },
-          { x: 0, y: 0, z: 0, w: 1 },
-        )
+        .setAdditionalMassProperties(...this.massProperties())
         .setCcdEnabled(true)
         .setCanSleep(false),
     )

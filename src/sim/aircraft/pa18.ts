@@ -16,6 +16,7 @@ export const pa18: AircraftSpec = {
   name: 'PA-18 Super Cub (1.7 m)',
   mass: 2.1,
   centerOfGravity: [0, -0.09, 0.082],
+  cgRange: [0.08, 0.085],
   inertia: [0.1, 0.18, 0.09],
 
   surfaces: [
@@ -241,6 +242,7 @@ export const pa18: AircraftSpec = {
   provenance: {
     mass: { basis: 'sourced', source: FMS_MANUAL, note: '~2100 g flying weight' },
     'centerOfGravity.2': { basis: 'sourced', source: FMS_MANUAL, note: 'CG 80-85 mm from LE' },
+    cgRange: { basis: 'sourced', source: FMS_MANUAL, note: 'CG 80-85 mm from LE' },
     'centerOfGravity.0': { basis: 'derived', note: 'symmetric' },
     'centerOfGravity.1': {
       basis: 'estimated',

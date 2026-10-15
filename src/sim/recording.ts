@@ -13,6 +13,8 @@ export interface RecordedFrame {
   inputs: ControlInputs
   /** Wind changed by the pilot, applied before this frame's first step. */
   wind?: WindSettings
+  /** CG moved by the pilot (m behind the datum), applied with `wind`. */
+  cg?: number
 }
 
 /**
@@ -25,13 +27,15 @@ export interface FlightRecording {
   seed: number
   wind: WindSettings
   spawn: Spawn
+  /** CG, m behind the datum. Absent means the aircraft's own. */
+  cg?: number
   frames: RecordedFrame[]
 }
 
 export class FlightRecorder {
   private readonly frames: RecordedFrame[] = []
   private readonly start: Omit<FlightRecording, 'frames' | 'version'>
-  private pendingWind: WindSettings | undefined
+  private pending: Pick<RecordedFrame, 'wind' | 'cg'> = {}
 
   constructor(options: SimulationOptions) {
     this.start = {
@@ -39,24 +43,29 @@ export class FlightRecorder {
       seed: options.seed ?? 1,
       wind: { ...(options.wind ?? DEFAULT_WIND) },
       spawn: options.spawn ?? { kind: 'runway' },
+      ...(options.cg !== undefined && { cg: options.cg }),
     }
   }
 
   record(inputs: ControlInputs): void {
     const last = this.frames[this.frames.length - 1]
-    if (last && !this.pendingWind && sameInputs(last.inputs, inputs)) {
+    const changed = this.pending.wind !== undefined || this.pending.cg !== undefined
+    if (last && !changed && sameInputs(last.inputs, inputs)) {
       last.steps++
       return
     }
-    const frame: RecordedFrame = { steps: 1, inputs: { ...inputs } }
-    if (this.pendingWind) frame.wind = this.pendingWind
-    this.pendingWind = undefined
-    this.frames.push(frame)
+    this.frames.push({ steps: 1, inputs: { ...inputs }, ...this.pending })
+    this.pending = {}
   }
 
   /** Call when the wind is changed mid-flight (before the next `record`). */
   setWind(wind: WindSettings): void {
-    this.pendingWind = { ...wind }
+    this.pending.wind = { ...wind }
+  }
+
+  /** Call when the CG is moved mid-flight (before the next `record`). */
+  setCg(cg: number): void {
+    this.pending.cg = cg
   }
 
   finish(): FlightRecording {
@@ -69,9 +78,11 @@ export function replay(sim: Simulation, recording: FlightRecording): void {
   if (recording.aircraftId !== sim.aircraft.id)
     throw new Error(`recording is for ${recording.aircraftId}, sim flies ${sim.aircraft.id}`)
   sim.setWind(recording.wind)
+  sim.setCg(recording.cg ?? sim.aircraft.centerOfGravity[2])
   sim.reset(recording.spawn, recording.seed)
   for (const frame of recording.frames) {
     if (frame.wind) sim.setWind(frame.wind)
+    if (frame.cg !== undefined) sim.setCg(frame.cg)
     for (let i = 0; i < frame.steps; i++) sim.step(frame.inputs)
   }
 }

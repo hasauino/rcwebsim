@@ -104,6 +104,13 @@ How far a control surface deflects at full stick on high rates, measured at its 
 **Decalage**:
 The difference between wing and stabiliser incidence; it sets the hands-off trim speed.
 
+**CG** (centre of gravity):
+The balance point, given as a distance behind the wing's leading edge as RC manuals do. The pilot moves it fore and aft, like sliding the battery in its bay; the weight stays the same.
+_Avoid_: COG, balance point (in code)
+
+**Nose heavy / tail heavy**:
+A CG ahead of / behind the manual's recommended range. Within it the aircraft is _centered_.
+
 **Ground attitude**:
 The nose-up angle a taildragger sits at on its three wheels.
 
@@ -130,6 +137,13 @@ The yawing moment from the propeller's descending blade taking a bigger bite of 
 
 **Trim speed**:
 The airspeed the aircraft settles at hands-off for a given elevator and throttle.
+
+**Neutral point**:
+The CG position at which pitch stability is lost: ahead of it the aircraft returns to its trimmed angle of attack, behind it no elevator setting holds one. Shown as the _lift point_ in the Balance settings.
+_Avoid_: centre of lift, aerodynamic centre (for the whole aircraft)
+
+**Static margin**:
+How far the CG sits ahead of the neutral point, as a fraction of the wing's mean chord.
 
 **Short period**:
 The quick, heavily damped pitch oscillation after a disturbance, seen in angle of attack.

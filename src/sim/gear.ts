@@ -45,7 +45,8 @@ export class LandingGear {
 
   constructor(
     private readonly specs: readonly WheelSpec[],
-    private readonly cgZ: number,
+    /** Current CG, body frame (moves when the CG is set). */
+    private readonly cg: Vector3,
   ) {
     this.wheels = specs.map(() => ({ onGround: false, compression: 0, load: 0 }))
   }
@@ -86,7 +87,7 @@ export class LandingGear {
       // behind the CG point left, wheels ahead point right.
       forward.set(0, 0, -1)
       if (spec.steering) {
-        const behind = spec.attach[2] > this.cgZ ? 1 : -1
+        const behind = spec.attach[2] > this.cg.z ? 1 : -1
         const angle = behind * ctx.channels[spec.steering.channel] * spec.steering.maxDeg * DEG
         forward.applyAxisAngle(steerAxis, angle)
       }

@@ -190,6 +190,8 @@ export interface AircraftSpec {
   name: string
   mass: number
   centerOfGravity: Vec3Tuple
+  /** The manual's recommended CG range, m behind the datum (front, back). */
+  cgRange: readonly [number, number]
   /** Principal moments of inertia about body x (pitch), y (yaw), z (roll). */
   inertia: Vec3Tuple
   surfaces: LiftingSurfaceSpec[]

@@ -60,7 +60,7 @@ export class World3D {
     this.cameras = new CameraRig(canvas.clientWidth / Math.max(canvas.clientHeight, 1))
     this.cameras.span = spec.surfaces[0]!.semiSpan * 2
     this.aircraft = new AircraftView(spec)
-    this.debug = new DebugOverlay(spec, sim)
+    this.debug = new DebugOverlay(sim)
     this.aircraft.group.add(this.debug.group)
     this.scene.add(this.aircraft.group)
     this.scene.fog = new Fog(0xb9c9d9, 1500, 14000)
