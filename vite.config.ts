@@ -3,7 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  // GitHub Pages serves the site from /<repo>/; CI sets BASE_PATH.
+  // GitHub Pages serves the site from the root of rcwebsim.umari.dev.
+  // Set BASE_PATH to build for a subpath instead.
   base: process.env.BASE_PATH ?? '/',
   plugins: [
     vue(),

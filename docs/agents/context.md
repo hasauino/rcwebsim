@@ -30,7 +30,7 @@ The owner tends to accept well-argued recommendations. Bring a recommendation wi
 - **Headless sim core.** All tests pass: aircraft validation, flight envelope, recording and replay, plus the touch sticks in `src/input/`.
 - **Balance.** The pilot can move the CG in settings (side view, lift point, draggable CG). It is saved per aircraft and recorded in flights.
 - **Real radios.** A transmitter on a USB sim cable flies as the transmitter, with the sim as its receiver (ADR-0012): radio setup by moving each control, switches on axes, a channel monitor and a receiver failsafe. "Airframe needs trimming" (Balance tab) builds the plane off true so there is trimming to practise. Not yet tried with a real cable.
-- **Browser app** deployed at https://hassan.umari.dev/rcwebsim/. It is an installable PWA and plays offline after the first load.
+- **Browser app** deployed at https://rcwebsim.umari.dev/. It is an installable PWA and plays offline after the first load.
 - **Animated model.** The prop spins (blades, then a blur disc), and the ailerons, flaps, elevator and rudder follow their servos. `scripts/split-model.ts` makes the split model from the export in `models-src/`.
 - **Hand launch.** Thrown from where the pilot stands at a set launch speed (default 11 m/s). Hands off at full power a firm throw climbs away and a 6 m/s one flies into the ground. The motor starts from rest at release, so it loses about 0.3 s of spool-up a real pilot would already have.
 - **PA-18 tuning.** Hands-off glide about 12.5 m/s. 1 g clean stall 7.4 m/s. Top speed about 26 m/s. Static thrust about 3.2 kg on a full pack. Roll rate about 125°/s.

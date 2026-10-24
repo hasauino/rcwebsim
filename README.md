@@ -2,7 +2,7 @@
 
 Fly a radio-controlled Piper Cub in your browser, from the pilot station like a real RC pilot.
 
-**▶ Play: <https://hassan.umari.dev/rcwebsim/>**
+**▶ Play: <https://rcwebsim.umari.dev/>**
 
 ![PA-18 Super Cub on the runway](docs/screenshot.png)
 

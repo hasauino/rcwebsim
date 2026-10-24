@@ -10,7 +10,7 @@ A browser RC flight simulator. The physics is the product: the PA-18 must fly li
 - **Every aircraft number carries provenance.** `validateAircraft` enforces it.
 - **Test through the public seams with TDD:** `createSimulation`/`Simulation`, `validateAircraft`, `FlightRecorder`/`replay`, `balance`/`neutralPoint` for the CG, and `InputDevices` for the touch sticks, gamepads and USB radios.
 - **Vue holds snapshots only.** Three objects and per-step state stay out of reactive stores (ADR-0009).
-- **Load runtime assets with relative URLs** (`assets/…`, `models/…`). The site is served from a subpath.
+- **Load runtime assets with relative URLs** (`assets/…`, `models/…`). The build must work under any base path.
 - **The pre-commit hook runs lint-staged, typecheck and tests.** Commit through it.
 
 ## Read before you start

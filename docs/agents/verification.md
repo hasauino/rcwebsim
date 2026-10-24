@@ -19,10 +19,10 @@ Hands-off at full power the plane climbs steeply. That is expected, because neut
 
 ## Deployment
 
-Pushing to `main` runs `.github/workflows/deploy.yml`: typecheck, then tests, then build, then GitHub Pages. The site is served from the repo subpath on the owner's custom domain (https://hassan.umari.dev/rcwebsim/).
+Pushing to `main` runs `.github/workflows/deploy.yml`: typecheck, then tests, then build, then GitHub Pages. The site is served from the root of its custom domain (https://rcwebsim.umari.dev/), set in the repo's Pages settings. DNS has a `CNAME` from `rcwebsim.umari.dev` to `hasauino.github.io`.
 
-- **Base path:** CI builds with `BASE_PATH=/<repo>/`. Load runtime assets with _relative_ URLs (`assets/...`, `models/...`) so they resolve under that path. A leading `/` breaks them on Pages.
-- **Checking a production build locally:** `BASE_PATH=/rcwebsim/ npx vite build && BASE_PATH=/rcwebsim/ npx vite preview`, then open `/rcwebsim/`.
+- **Base path:** CI builds for `/`. `BASE_PATH=/sub/` builds for a subpath. Load runtime assets with _relative_ URLs (`assets/...`, `models/...`) so the build works under any base path.
+- **Checking a production build locally:** `npx vite build && npx vite preview`. To check a subpath build: `BASE_PATH=/rcwebsim/ npx vite build && BASE_PATH=/rcwebsim/ npx vite preview`, then open `/rcwebsim/`.
 - **Service worker (PWA).** `vite-plugin-pwa` in `vite.config.ts` precaches the whole build, including every file under `public/`, so the app installs and runs offline. A new file type under `public/` needs its extension added to `workbox.globPatterns`, or it won't load offline. The dev server registers no service worker. A production preview does, so a stale build can be served from cache: close the tab or clear site data before checking again. To check offline play, call `context.setOffline(true)` after the first load, reload, and wait for `.spinner` to disappear.
 - **Icons.** `public/icon.svg` is the source. After editing it, run `npx pwa-assets-generator` to regenerate the PNGs and `favicon.ico`.
 - **Watching a deploy:** `gh run watch <id> -R hasauino/rcwebsim --exit-status`.
