@@ -9,6 +9,7 @@ import {
   Mesh,
   PCFShadowMap,
   PerspectiveCamera,
+  PlaneGeometry,
   RectAreaLight,
   Scene,
   Vector3,
@@ -17,14 +18,13 @@ import {
   type Texture,
 } from 'three'
 import {
+  MeshBasicNodeMaterial,
   PMREMGenerator,
   RectAreaLightNode,
-  RenderPipeline,
   WebGPURenderer,
   type RenderTarget,
 } from 'three/webgpu'
-import { builtinAOContext, mrt, normalView, pass, screenUV } from 'three/tsl'
-import { ao } from 'three/addons/tsl/display/GTAONode.js'
+import { float, length, smoothstep, uv } from 'three/tsl'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import { RectAreaLightTexturesLib } from 'three/addons/lights/RectAreaLightTexturesLib.js'
@@ -98,7 +98,8 @@ export class HangarScene {
   private readonly sun = new DirectionalLight(SUN_LIGHT, 4.2)
   /** Where the plane stands: it turns the airframe nose to the door. */
   private readonly stand = new Group()
-  private pipeline: RenderPipeline | null = null
+  /** Soft dark patches on the floor under the airframe and each wheel. */
+  private readonly contact = new Group()
   private pmrem: PMREMGenerator | null = null
   private envTargets: RenderTarget[] = []
   private view: AircraftView | null = null
@@ -124,7 +125,7 @@ export class HangarScene {
   private resizeObserver: ResizeObserver | null = null
   private loading = 0
   private disposed = false
-  /** Phones and the WebGL fallback: no ambient occlusion, only big props cast shadows. */
+  /** Phones and the WebGL fallback: only big props cast shadows. */
   private lowQuality = false
   /** Resolves once the first aircraft is up (or after a few seconds without one). */
   private planeShown: () => void = () => {}
@@ -145,6 +146,7 @@ export class HangarScene {
     this.scene.background = new Color(SKY_LIGHT)
     this.stand.position.set(...PLANE_SPOT.at)
     this.stand.rotation.y = MathUtils.degToRad(PLANE_SPOT.yawDeg)
+    this.stand.add(this.contact)
     this.scene.add(this.stand)
   }
 
@@ -167,7 +169,6 @@ export class HangarScene {
     this.light()
     const room = createRoom()
     this.scene.add(room.group)
-    if (!this.lowQuality) this.pipeline = this.buildPipeline()
     this.pmrem = new PMREMGenerator(this.renderer)
     this.renderer.setAnimationLoop((time) => this.frame(time / 1000))
     await Promise.all([
@@ -230,6 +231,7 @@ export class HangarScene {
     this.disposed = true
     clearTimeout(this.firstPlaneTimer)
     this.view?.dispose()
+    this.clearContact()
     this.stand.clear()
     this.detach?.()
     this.resizeObserver?.disconnect()
@@ -247,7 +249,6 @@ export class HangarScene {
       (this.scene.background as Texture).dispose()
     for (const t of this.envTargets) t.dispose()
     this.pmrem?.dispose()
-    this.pipeline?.dispose()
     this.renderer.dispose()
   }
 
@@ -288,20 +289,6 @@ export class HangarScene {
     bounce.position.set(PLANE_SPOT.at[0] - 0.4, 0.02, PLANE_SPOT.at[2] + 0.2)
     bounce.lookAt(PLANE_SPOT.at[0] - 0.4, 2, PLANE_SPOT.at[2] + 0.2)
     this.scene.add(door, side, bounce, new HemisphereLight(SKY_LIGHT, 0xb9ad9b, 0.35))
-  }
-
-  /** Ambient occlusion on the indirect light, from a normal-and-depth prepass. */
-  private buildPipeline(): RenderPipeline {
-    const pipeline = new RenderPipeline(this.renderer)
-    const prePass = pass(this.scene, this.camera, { samples: 0 })
-    prePass.setMRT(mrt({ output: normalView }))
-    const aoPass = ao(prePass.getTextureNode('depth'), prePass.getTextureNode(), this.camera)
-    aoPass.resolutionScale = 0.5
-    aoPass.radius.value = 0.35
-    const scenePass = pass(this.scene, this.camera)
-    scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r)
-    pipeline.outputNode = scenePass
-    return pipeline
   }
 
   /**
@@ -411,6 +398,29 @@ export class HangarScene {
     // Look at the middle of the airframe, halfway from the prop to the tail.
     const tail = Math.max(...spec.wheels.map((w) => w.attach[2]))
     group.localToWorld(this.target.set(0, 0, (spec.propeller.position[2] + tail) / 2))
+
+    // Contact shadows: under the fuselage, and darker under each tyre.
+    group.updateMatrix()
+    this.clearContact()
+    const nose = spec.propeller.position[2]
+    const fuselage = contactShadow(this.span * 0.22, (tail - nose) * 1.15, 0.3)
+    fuselage.position.set(0, 0.002, (nose + tail) / 2)
+    this.contact.add(fuselage)
+    for (const [i, bottom] of bottoms.entries()) {
+      const at = bottom.applyMatrix4(group.matrix)
+      const size = spec.wheels[i]!.radius * 5
+      const tyre = contactShadow(size, size, 0.55)
+      tyre.position.set(at.x, 0.003, at.z)
+      this.contact.add(tyre)
+    }
+  }
+
+  private clearContact(): void {
+    for (const m of this.contact.children as Mesh[]) {
+      m.geometry.dispose()
+      ;(m.material as Material).dispose()
+    }
+    this.contact.clear()
   }
 
   /** Each control surface half, keyed like telemetry deflections. */
@@ -469,8 +479,7 @@ export class HangarScene {
     this.reach = orbitReach(target.toArray(), dir.toArray(), ROOM_BOX, WALL_MARGIN)
     c.position.copy(target).addScaledVector(dir, Math.min(this.distance, this.reach))
     c.lookAt(target)
-    if (this.pipeline) this.pipeline.render()
-    else void this.renderer.render(this.scene, c)
+    void this.renderer.render(this.scene, c)
   }
 
   private fade(): void {
@@ -552,4 +561,23 @@ export class HangarScene {
       el.removeEventListener('wheel', wheel)
     }
   }
+}
+
+/**
+ * A soft dark ellipse lying on the floor, `width` across x and `along`
+ * along z, m: the light the airframe keeps off the floor right under it,
+ * which the sun's shadow map is too coarse to show.
+ */
+function contactShadow(width: number, along: number, darkness: number): Mesh {
+  const material = new MeshBasicNodeMaterial({
+    color: 0x000000,
+    transparent: true,
+    depthWrite: false,
+  })
+  const r = length(uv().sub(0.5).mul(2))
+  material.opacityNode = float(darkness).mul(smoothstep(1, 0, r).pow(2))
+  const mesh = new Mesh(new PlaneGeometry(width, along), material)
+  mesh.rotation.x = -Math.PI / 2
+  mesh.renderOrder = 1
+  return mesh
 }
