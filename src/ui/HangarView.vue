@@ -5,9 +5,10 @@ import type { AircraftSpec } from '../sim/aircraft/types'
 import { HangarScene } from '../render/hangar/scene'
 import { isTyping } from '../input/devices'
 import CreditsList from './CreditsList.vue'
+import { hideSplash, showSplash, splashProgress } from './splash'
 
 const props = defineProps<{ selected: string }>()
-const emit = defineEmits<{ fly: [aircraft: AircraftSpec] }>()
+const emit = defineEmits<{ choose: [aircraft: AircraftSpec]; fly: [aircraft: AircraftSpec] }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
@@ -17,6 +18,8 @@ const loading = ref(true)
 const sceneFailed = ref(false)
 const showCredits = ref(false)
 let hangar: HangarScene | null = null
+// Covers the swap from a flight at once, before the scene has drawn a frame.
+showSplash()
 
 const inches = (m: number) => +(m / 0.0254).toFixed(1)
 const facts = (a: AircraftSpec) => [
@@ -37,11 +40,14 @@ onMounted(async () => {
   try {
     hangar = new HangarScene(canvas.value!)
     if (import.meta.env.DEV) (window as unknown as { hangar: HangarScene }).hangar = hangar
-    // The plane goes up as soon as the renderer is ready; the room fills in behind it.
-    const ready = hangar.init()
+    // The plane goes up as soon as the renderer is ready; the room fills in
+    // behind it. The loading screen covers it all until then.
+    const ready = hangar.init(splashProgress)
     await show(chosen.value)
     await ready
+    hideSplash()
   } catch (e) {
+    hideSplash()
     // No WebGPU or WebGL 2 for the hangar; the cards still work.
     sceneFailed.value = true
     loading.value = false
@@ -62,10 +68,15 @@ onMounted(() => {
   panelObserver.observe(canvas.value!)
 })
 onBeforeUnmount(() => {
+  // Enter flies even while the hangar is still loading.
+  hideSplash()
   panelObserver.disconnect()
   hangar?.dispose()
 })
-watch(chosen, (a) => void show(a))
+watch(chosen, (a) => {
+  emit('choose', a)
+  void show(a)
+})
 
 function step(by: number) {
   const i = AIRCRAFT.indexOf(chosen.value)

@@ -12,8 +12,182 @@
       content="Fly radio-controlled model aircraft from the pilot station."
     />
     <title>RC Flight Sim</title>
+    <!-- The loading screen paints before any script arrives, so its styles are inline. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0d1117;
+      }
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 16px;
+        background: radial-gradient(ellipse at 50% 35%, #1b2a40 0%, #0d1117 70%);
+        color: #e6edf3;
+        font:
+          14px/1.45 'Inter',
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        text-align: center;
+      }
+      #splash[hidden] {
+        display: none;
+      }
+      /* It fades out, but comes back at once to cover the swap from a flight. */
+      #splash.gone {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+      }
+      #splash .sky {
+        position: relative;
+        width: 160px;
+        height: 160px;
+        overflow: hidden;
+        border-radius: 50%;
+        background: linear-gradient(#2b6cb0, #16233a);
+        box-shadow: 0 10px 40px rgba(43, 108, 176, 0.35);
+      }
+      #splash .streak {
+        position: absolute;
+        top: -40px;
+        width: 2px;
+        height: 34px;
+        border-radius: 1px;
+        background: rgba(255, 255, 255, 0.45);
+        animation: splash-streak 0.9s linear infinite;
+      }
+      #splash .plane {
+        position: absolute;
+        inset: 22px;
+        animation: splash-weave 4s ease-in-out infinite;
+      }
+      #splash .prop {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: splash-prop 0.12s linear infinite;
+      }
+      #splash h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 650;
+        letter-spacing: 0.01em;
+      }
+      #splash .bar {
+        width: min(280px, 80vw);
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+        background: rgba(240, 246, 252, 0.12);
+      }
+      #splash .fill {
+        width: 100%;
+        height: 100%;
+        border-radius: 3px;
+        background: #f5a524;
+        transform: scaleX(0);
+        transform-origin: left;
+      }
+      #splash .status {
+        margin: -8px 0 0;
+        color: #8b949e;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      #splash .tip {
+        max-width: 440px;
+        min-height: 4.4em;
+        margin: 0;
+        transition: opacity 0.4s ease;
+      }
+      #splash .tip.fading {
+        opacity: 0;
+      }
+      #splash .tip b {
+        display: block;
+        margin-bottom: 4px;
+        color: #f5a524;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      #splash .skip {
+        visibility: hidden;
+        padding: 6px 14px;
+        border: 1px solid rgba(240, 246, 252, 0.12);
+        border-radius: 6px;
+        background: none;
+        color: #8b949e;
+        font: inherit;
+        cursor: pointer;
+      }
+      #splash .skip.shown {
+        visibility: visible;
+      }
+      #splash .skip:hover {
+        color: #e6edf3;
+      }
+      @keyframes splash-streak {
+        to {
+          transform: translateY(240px);
+        }
+      }
+      @keyframes splash-weave {
+        0%,
+        100% {
+          transform: translateX(-10px) rotate(-8deg);
+        }
+        50% {
+          transform: translateX(10px) rotate(8deg);
+        }
+      }
+      @keyframes splash-prop {
+        50% {
+          transform: scaleX(0.15);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .streak,
+        #splash .plane,
+        #splash .prop {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash" role="status" aria-label="Loading">
+      <div class="sky" aria-hidden="true">
+        <span class="streak" style="left: 18%; animation-delay: -0.2s"></span>
+        <span class="streak" style="left: 34%; animation-delay: -0.65s"></span>
+        <span class="streak" style="left: 66%; animation-delay: -0.4s"></span>
+        <span class="streak" style="left: 82%; animation-delay: -0.8s"></span>
+        <!-- The icon's high-wing taildragger from above, nose up, prop spinning. -->
+        <svg class="plane" viewBox="60 90 392 330">
+          <g fill="#f5a524">
+            <rect class="prop" x="200" y="106" width="112" height="10" rx="5" />
+            <path d="M238 124 Q256 112 274 124 L270 400 Q256 410 242 400 Z" />
+            <rect x="76" y="176" width="360" height="56" rx="14" />
+            <rect x="190" y="370" width="132" height="30" rx="10" />
+          </g>
+        </svg>
+      </div>
+      <h1>RC Flight Sim</h1>
+      <div class="bar"><div class="fill"></div></div>
+      <p class="status">Loading the hangar…</p>
+      <p class="tip" aria-live="polite"></p>
+      <button class="skip" type="button">Go in now</button>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

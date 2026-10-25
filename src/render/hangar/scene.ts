@@ -34,6 +34,7 @@ import type { AircraftSpec, Channel } from '../../sim/aircraft/types'
 import { AircraftView } from '../aircraft'
 import { LAYOUT, PLANE_SPOT } from './layout'
 import { orbitReach } from './orbit'
+import { LoadProgress } from './progress'
 import { propUrl, type PropId } from './props'
 import { ROOM, ROOM_BOX, createGarden, createRoom } from './room'
 
@@ -58,6 +59,11 @@ const WALL_MARGIN = 0.25
  * throws its glazing bars on the floor beyond.
  */
 const SUN = { elevationDeg: 30, azimuthDeg: 45 }
+/**
+ * Each layer's share of a cold load, by roughly what it downloads, MB: the
+ * garden is the ez-tree chunk with its built-in bark and leaf textures.
+ */
+const LOAD_WEIGHT = { room: 0.6, plane: 2, props: 6.5, sky: 1.4, garden: 3 }
 const SKY_LIGHT = 0xd6e6ff
 const SUN_LIGHT = 0xfff1de
 
@@ -142,7 +148,10 @@ export class HangarScene {
     this.scene.add(this.stand)
   }
 
-  async init(): Promise<void> {
+  /** Starts rendering and loads every layer; `onProgress` hears the share loaded so far. */
+  async init(onProgress: (fraction: number) => void = () => {}): Promise<void> {
+    const total = Object.values(LOAD_WEIGHT).reduce((a, b) => a + b)
+    const progress = new LoadProgress(total, onProgress)
     await this.renderer.init()
     if (this.disposed) return
     const backend = this.renderer.backend as { isWebGPUBackend?: boolean }
@@ -162,12 +171,21 @@ export class HangarScene {
     // The rest arrives in layers, each with the bandwidth to itself: the
     // plane and the room's surfaces, then the props, then the sky and garden
     // outside (a plain sky colour shows through the door until then).
-    await Promise.all([room.ready, this.firstPlane])
+    await Promise.all([
+      progress.track(room.ready, LOAD_WEIGHT.room),
+      progress.track(this.firstPlane, LOAD_WEIGHT.plane),
+    ])
     if (this.disposed) return
     this.captureEnvironment()
-    await this.loadProps()
+    await this.loadProps(progress)
     this.captureEnvironment()
-    const [garden] = await Promise.all([createGarden().catch(() => null), this.loadSky()])
+    const [garden] = await Promise.all([
+      progress.track(
+        createGarden().catch(() => null),
+        LOAD_WEIGHT.garden,
+      ),
+      progress.track(this.loadSky(), LOAD_WEIGHT.sky),
+    ])
     if (this.disposed) return
     if (garden) this.scene.add(garden)
     this.captureEnvironment()
@@ -319,16 +337,20 @@ export class HangarScene {
   }
 
   /** Loads every prop in parallel, each fading in as it arrives. */
-  private async loadProps(): Promise<void> {
+  private async loadProps(progress: LoadProgress): Promise<void> {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
     const models = new Map<PropId, Promise<Object3D | null>>()
+    const weight = LOAD_WEIGHT.props / new Set(LAYOUT.map((p) => p.prop)).size
     const model = (id: PropId) => {
       if (!models.has(id))
         models.set(
           id,
-          loader.loadAsync(propUrl(id)).then(
-            (g) => g.scene,
-            () => null,
+          progress.track(
+            loader.loadAsync(propUrl(id)).then(
+              (g) => g.scene,
+              () => null,
+            ),
+            weight,
           ),
         )
       return models.get(id)!
