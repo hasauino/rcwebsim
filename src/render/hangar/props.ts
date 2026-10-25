@@ -5,9 +5,14 @@
  * Only licences that allow changes and commercial use are accepted.
  */
 
-export type HangarLicense = 'CC0' | 'CC-BY 4.0' | 'CC-BY-SA 4.0'
+export type HangarLicense = 'CC0' | 'CC-BY 4.0' | 'CC-BY-SA 4.0' | 'MIT'
 
-export const ALLOWED_LICENSES: readonly HangarLicense[] = ['CC0', 'CC-BY 4.0', 'CC-BY-SA 4.0']
+export const ALLOWED_LICENSES: readonly HangarLicense[] = [
+  'CC0',
+  'CC-BY 4.0',
+  'CC-BY-SA 4.0',
+  'MIT',
+]
 
 export interface HangarCredit {
   title: string
@@ -151,3 +156,15 @@ export type SurfaceId = keyof typeof SURFACES
 export const propUrl = (id: PropId) => `assets/hangar/${id}.glb`
 export const surfaceUrl = (id: SurfaceId, map: 'diff' | 'nor' | 'arm') =>
   `assets/hangar/textures/${id}_${map}.webp`
+
+/**
+ * The garden outside the door: the field's ez-tree trees and hedge, grown,
+ * thinned and baked by `scripts/hangar-garden.ts`.
+ */
+export const GARDEN_URL = 'assets/hangar/garden.glb'
+export const GARDEN: HangarCredit = {
+  title: 'ez-tree',
+  author: 'Daniel Greenheck',
+  license: 'MIT',
+  url: 'https://github.com/dgreenheck/ez-tree',
+}

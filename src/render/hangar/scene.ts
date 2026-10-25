@@ -9,6 +9,7 @@ import {
   Mesh,
   PCFShadowMap,
   PerspectiveCamera,
+  PlaneGeometry,
   RectAreaLight,
   Scene,
   Vector3,
@@ -17,14 +18,13 @@ import {
   type Texture,
 } from 'three'
 import {
+  MeshBasicNodeMaterial,
   PMREMGenerator,
   RectAreaLightNode,
-  RenderPipeline,
   WebGPURenderer,
   type RenderTarget,
 } from 'three/webgpu'
-import { builtinAOContext, mrt, normalView, pass, screenUV } from 'three/tsl'
-import { ao } from 'three/addons/tsl/display/GTAONode.js'
+import { float, length, smoothstep, uv } from 'three/tsl'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import { RectAreaLightTexturesLib } from 'three/addons/lights/RectAreaLightTexturesLib.js'
@@ -36,7 +36,7 @@ import { LAYOUT, PLANE_SPOT } from './layout'
 import { orbitReach } from './orbit'
 import { LoadProgress } from './progress'
 import { propUrl, type PropId } from './props'
-import { ROOM, ROOM_BOX, createGarden, createRoom } from './room'
+import { ROOM, ROOM_BOX, createRoom, loadGarden } from './room'
 
 /** One stick routine: ailerons, elevator, rudder, then a rest, seconds each. */
 const ROUTINE: (Channel | null)[] = ['aileron', 'elevator', 'rudder', null]
@@ -59,11 +59,8 @@ const WALL_MARGIN = 0.25
  * throws its glazing bars on the floor beyond.
  */
 const SUN = { elevationDeg: 30, azimuthDeg: 45 }
-/**
- * Each layer's share of a cold load, by roughly what it downloads, MB: the
- * garden is the ez-tree chunk with its built-in bark and leaf textures.
- */
-const LOAD_WEIGHT = { room: 0.6, plane: 2, props: 6.5, sky: 1.4, garden: 3 }
+/** Each layer's share of a cold load, by roughly what it downloads, MB. */
+const LOAD_WEIGHT = { room: 0.6, plane: 2, props: 6.1, sky: 1.4, garden: 0.9 }
 const SKY_LIGHT = 0xd6e6ff
 const SUN_LIGHT = 0xfff1de
 
@@ -77,9 +74,11 @@ interface SweptSurface {
   throwDeg: number
 }
 
+/** A prop's materials fading in, each towards its own opacity. */
 interface Fading {
-  materials: Material[]
-  start: number
+  materials: { material: Material; opacity: number }[]
+  /** When the first placement went in, s; null until then. */
+  start: number | null
 }
 
 /**
@@ -98,9 +97,15 @@ export class HangarScene {
   private readonly sun = new DirectionalLight(SUN_LIGHT, 4.2)
   /** Where the plane stands: it turns the airframe nose to the door. */
   private readonly stand = new Group()
-  private pipeline: RenderPipeline | null = null
+  /** The furnishings; the room's reflection leaves them out. */
+  private readonly props = new Group()
+  /** Soft dark patches on the floor under the airframe and each wheel. */
+  private readonly contact = new Group()
   private pmrem: PMREMGenerator | null = null
-  private envTargets: RenderTarget[] = []
+  /** The room's reflection: the first capture, kept for good; later ones are copied in. */
+  private env: RenderTarget | null = null
+  /** Where each later capture renders before it is copied into `env`. */
+  private scratch: RenderTarget | null = null
   private view: AircraftView | null = null
   private spec: AircraftSpec | null = null
   private surfaces: SweptSurface[] = []
@@ -124,7 +129,7 @@ export class HangarScene {
   private resizeObserver: ResizeObserver | null = null
   private loading = 0
   private disposed = false
-  /** Phones and the WebGL fallback: no ambient occlusion, only big props cast shadows. */
+  /** Phones and the WebGL fallback: only big props cast shadows. */
   private lowQuality = false
   /** Resolves once the first aircraft is up (or after a few seconds without one). */
   private planeShown: () => void = () => {}
@@ -145,10 +150,15 @@ export class HangarScene {
     this.scene.background = new Color(SKY_LIGHT)
     this.stand.position.set(...PLANE_SPOT.at)
     this.stand.rotation.y = MathUtils.degToRad(PLANE_SPOT.yawDeg)
-    this.scene.add(this.stand)
+    this.stand.add(this.contact)
+    this.scene.add(this.stand, this.props)
   }
 
-  /** Starts rendering and loads every layer; `onProgress` hears the share loaded so far. */
+  /**
+   * Starts rendering and loads every layer; `onProgress` hears the share
+   * loaded so far. Resolves once the last layer is in. A layer after the
+   * first that fails is left out.
+   */
   async init(onProgress: (fraction: number) => void = () => {}): Promise<void> {
     const total = Object.values(LOAD_WEIGHT).reduce((a, b) => a + b)
     const progress = new LoadProgress(total, onProgress)
@@ -164,24 +174,27 @@ export class HangarScene {
     this.light()
     const room = createRoom()
     this.scene.add(room.group)
-    if (!this.lowQuality) this.pipeline = this.buildPipeline()
     this.pmrem = new PMREMGenerator(this.renderer)
     this.renderer.setAnimationLoop((time) => this.frame(time / 1000))
-
-    // The rest arrives in layers, each with the bandwidth to itself: the
-    // plane and the room's surfaces, then the props, then the sky and garden
-    // outside (a plain sky colour shows through the door until then).
     await Promise.all([
       progress.track(room.ready, LOAD_WEIGHT.room),
       progress.track(this.firstPlane, LOAD_WEIGHT.plane),
     ])
     if (this.disposed) return
     this.captureEnvironment()
+    await this.loadRest(progress).catch((e: unknown) => console.error(e))
+  }
+
+  /**
+   * The layers after the first, each with the bandwidth to itself: the props
+   * fade in, then the sky and garden outside (a plain sky colour shows
+   * through the door until then).
+   */
+  private async loadRest(progress: LoadProgress): Promise<void> {
     await this.loadProps(progress)
-    this.captureEnvironment()
     const [garden] = await Promise.all([
       progress.track(
-        createGarden().catch(() => null),
+        loadGarden().catch(() => null),
         LOAD_WEIGHT.garden,
       ),
       progress.track(this.loadSky(), LOAD_WEIGHT.sky),
@@ -225,6 +238,7 @@ export class HangarScene {
     this.disposed = true
     clearTimeout(this.firstPlaneTimer)
     this.view?.dispose()
+    this.clearContact()
     this.stand.clear()
     this.detach?.()
     this.resizeObserver?.disconnect()
@@ -240,9 +254,9 @@ export class HangarScene {
     })
     if (this.scene.background && (this.scene.background as Texture).isTexture)
       (this.scene.background as Texture).dispose()
-    for (const t of this.envTargets) t.dispose()
+    this.env?.dispose()
+    this.scratch?.dispose()
     this.pmrem?.dispose()
-    this.pipeline?.dispose()
     this.renderer.dispose()
   }
 
@@ -285,41 +299,35 @@ export class HangarScene {
     this.scene.add(door, side, bounce, new HemisphereLight(SKY_LIGHT, 0xb9ad9b, 0.35))
   }
 
-  /** Ambient occlusion on the indirect light, from a normal-and-depth prepass. */
-  private buildPipeline(): RenderPipeline {
-    const pipeline = new RenderPipeline(this.renderer)
-    const prePass = pass(this.scene, this.camera, { samples: 0 })
-    prePass.setMRT(mrt({ output: normalView }))
-    const aoPass = ao(prePass.getTextureNode('depth'), prePass.getTextureNode(), this.camera)
-    aoPass.resolutionScale = 0.5
-    aoPass.radius.value = 0.35
-    const scenePass = pass(this.scene, this.camera)
-    scenePass.contextNode = builtinAOContext(aoPass.getTextureNode().sample(screenUV).r)
-    pipeline.outputNode = scenePass
-    return pipeline
-  }
-
   /**
    * Captures the room as the environment light from the middle of it, twice
-   * so the light bounces once off what it lit. The aircraft stays out of it.
+   * so the light bounces once off what it lit. The aircraft and the props
+   * stay out of it: blurred to 128 px they hardly show, and each prop
+   * material would need its shaders built again for the capture.
    */
   private captureEnvironment(): void {
     if (this.disposed || !this.pmrem) return
     this.stand.visible = false
-    const old = this.envTargets
-    this.envTargets = []
+    this.props.visible = false
     for (let bounce = 0; bounce < 2; bounce++) {
       const capture = this.pmrem.fromScene(this.scene, 0.02, 0.05, 200, {
         size: 128,
         position: new Vector3(0, 1.3, 0),
+        renderTarget: this.scratch,
       })
-      this.envTargets.push(capture)
-      this.scene.environment = capture.texture
+      // Every material keeps the one environment texture: a new one would
+      // rebuild every shader in the room.
+      if (!this.env) {
+        this.env = capture
+        this.scene.environment = capture.texture
+      } else {
+        this.scratch = capture
+        this.renderer.copyTextureToTexture(capture.texture, this.env.texture)
+      }
     }
     this.scene.environmentIntensity = 0.9
     this.stand.visible = true
-    for (const t of old) t.dispose()
-    this.envTargets.shift()?.dispose()
+    this.props.visible = true
   }
 
   /** The sky seen through the door and window. */
@@ -336,10 +344,13 @@ export class HangarScene {
       })
   }
 
-  /** Loads every prop in parallel, each fading in as it arrives. */
+  /**
+   * Loads every prop in parallel, each fading in as it arrives. Every
+   * placement of a prop shares its materials, so they fade together.
+   */
   private async loadProps(progress: LoadProgress): Promise<void> {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
-    const models = new Map<PropId, Promise<Object3D | null>>()
+    const models = new Map<PropId, Promise<{ model: Object3D; fade: Fading } | null>>()
     const weight = LOAD_WEIGHT.props / new Set(LAYOUT.map((p) => p.prop)).size
     const model = (id: PropId) => {
       if (!models.has(id))
@@ -347,7 +358,7 @@ export class HangarScene {
           id,
           progress.track(
             loader.loadAsync(propUrl(id)).then(
-              (g) => g.scene,
+              (g) => ({ model: g.scene, fade: this.hide(g.scene) }),
               () => null,
             ),
             weight,
@@ -357,9 +368,9 @@ export class HangarScene {
     }
     await Promise.all(
       LAYOUT.map(async (p) => {
-        const source = await model(p.prop)
-        if (!source || this.disposed) return
-        const prop = source.clone()
+        const loaded = await model(p.prop)
+        if (!loaded || this.disposed) return
+        const prop = loaded.model.clone()
         prop.position.set(...p.at)
         prop.rotation.set(
           MathUtils.degToRad(p.tiltDeg?.[0] ?? 0),
@@ -368,25 +379,44 @@ export class HangarScene {
           'YXZ',
         )
         const cast = !this.lowQuality || p.big === true
-        const materials: Material[] = []
         prop.traverse((o) => {
           if (!(o instanceof Mesh)) return
           o.castShadow = cast
           o.receiveShadow = true
-          // Clones share materials; each placement fades its own copies.
-          o.material = ([o.material].flat() as Material[]).map((m) => {
-            const own = m.clone()
-            own.transparent = true
-            own.opacity = 0
-            materials.push(own)
-            return own
-          })
-          if (o.material.length === 1) o.material = o.material[0]!
         })
-        this.scene.add(prop)
-        this.fading.push({ materials, start: this.clock })
+        // Builds its shaders now, one prop at a time, rather than all of
+        // them in the first frame that draws them (which it falls back on).
+        await this.renderer.compileAsync(prop, this.camera, this.scene).catch(() => {})
+        if (this.disposed) return
+        this.props.add(prop)
+        if (loaded.fade.start === null) {
+          loaded.fade.start = this.clock
+          this.fading.push(loaded.fade)
+        }
       }),
     )
+  }
+
+  /**
+   * Turns a model's materials clear, ready to fade in once it goes in.
+   * Opaque ones fade by alpha hashing, a dither that stays opaque, so they
+   * need no sorting and their shaders stay the same once the fade ends
+   * (none of the props' opaque textures carry alpha to dither through).
+   */
+  private hide(model: Object3D): Fading {
+    const materials = new Map<Material, number>()
+    model.traverse((o) => {
+      if (o instanceof Mesh)
+        for (const m of [o.material].flat() as Material[]) materials.set(m, m.opacity)
+    })
+    for (const m of materials.keys()) {
+      if (!m.transparent) m.alphaHash = true
+      m.opacity = 0
+    }
+    return {
+      materials: [...materials].map(([material, opacity]) => ({ material, opacity })),
+      start: null,
+    }
   }
 
   /** Sits the airframe on its wheels at its ground attitude, wheels on the floor. */
@@ -410,6 +440,29 @@ export class HangarScene {
     // Look at the middle of the airframe, halfway from the prop to the tail.
     const tail = Math.max(...spec.wheels.map((w) => w.attach[2]))
     group.localToWorld(this.target.set(0, 0, (spec.propeller.position[2] + tail) / 2))
+
+    // Contact shadows: under the fuselage, and darker under each tyre.
+    group.updateMatrix()
+    this.clearContact()
+    const nose = spec.propeller.position[2]
+    const fuselage = contactShadow(this.span * 0.22, (tail - nose) * 1.15, 0.3)
+    fuselage.position.set(0, 0.002, (nose + tail) / 2)
+    this.contact.add(fuselage)
+    for (const [i, bottom] of bottoms.entries()) {
+      const at = bottom.applyMatrix4(group.matrix)
+      const size = spec.wheels[i]!.radius * 5
+      const tyre = contactShadow(size, size, 0.55)
+      tyre.position.set(at.x, 0.003, at.z)
+      this.contact.add(tyre)
+    }
+  }
+
+  private clearContact(): void {
+    for (const m of this.contact.children as Mesh[]) {
+      m.geometry.dispose()
+      ;(m.material as Material).dispose()
+    }
+    this.contact.clear()
   }
 
   /** Each control surface half, keyed like telemetry deflections. */
@@ -468,21 +521,14 @@ export class HangarScene {
     this.reach = orbitReach(target.toArray(), dir.toArray(), ROOM_BOX, WALL_MARGIN)
     c.position.copy(target).addScaledVector(dir, Math.min(this.distance, this.reach))
     c.lookAt(target)
-    if (this.pipeline) this.pipeline.render()
-    else void this.renderer.render(this.scene, c)
+    void this.renderer.render(this.scene, c)
   }
 
   private fade(): void {
     for (let i = this.fading.length - 1; i >= 0; i--) {
       const f = this.fading[i]!
-      const k = Math.min(1, (this.clock - f.start) / FADE)
-      for (const m of f.materials) {
-        m.opacity = k
-        if (k === 1) {
-          m.transparent = false
-          m.needsUpdate = true
-        }
-      }
+      const k = Math.min(1, (this.clock - f.start!) / FADE)
+      for (const { material, opacity } of f.materials) material.opacity = k * opacity
       if (k === 1) this.fading.splice(i, 1)
     }
   }
@@ -551,4 +597,23 @@ export class HangarScene {
       el.removeEventListener('wheel', wheel)
     }
   }
+}
+
+/**
+ * A soft dark ellipse lying on the floor, `width` across x and `along`
+ * along z, m: the light the airframe keeps off the floor right under it,
+ * which the sun's shadow map is too coarse to show.
+ */
+function contactShadow(width: number, along: number, darkness: number): Mesh {
+  const material = new MeshBasicNodeMaterial({
+    color: 0x000000,
+    transparent: true,
+    depthWrite: false,
+  })
+  const r = length(uv().sub(0.5).mul(2))
+  material.opacityNode = float(darkness).mul(smoothstep(1, 0, r).pow(2))
+  const mesh = new Mesh(new PlaneGeometry(width, along), material)
+  mesh.rotation.x = -Math.PI / 2
+  mesh.renderOrder = 1
+  return mesh
 }

@@ -4,6 +4,7 @@ import {
   Group,
   Mesh,
   RepeatWrapping,
+  type MeshStandardMaterial,
   SRGBColorSpace,
   TextureLoader,
   Vector2,
@@ -13,10 +14,11 @@ import {
 } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { color, luminance, texture, vec3 } from 'three/tsl'
-import { Rng } from '../../sim/rng'
-import { Grove, growVariants, type TreeVariant } from '../trees'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
+import { canopyNormals, leafMaterial } from '../trees'
 import type { Box } from './orbit'
-import { surfaceUrl, type SurfaceId } from './props'
+import { GARDEN_URL, surfaceUrl, type SurfaceId } from './props'
 
 /** Inside of the garage, metres: +x right, +y up, the open door on +z. */
 export const ROOM = {
@@ -215,33 +217,23 @@ export function createRoom(): Room {
 
 /**
  * The garden seen through the door and window: a hedge across the end of
- * the drive and down the side, and a few trees. Grown with the field's
- * trees, so it arrives last.
+ * the drive and down the side, and a few trees, baked from the field's
+ * trees by `scripts/hangar-garden.ts`. Its leaves get the field's material.
  */
-export async function createGarden(): Promise<Group> {
-  const variants = await growVariants()
-  const rng = new Rng(7)
-  const grove = new Grove(rng)
-  const place = (variant: TreeVariant, x: number, z: number, height: number) =>
-    grove.plant(variant, x, -0.1, z, height)
-  // Hedge across the end of the drive, and along the right-hand boundary.
-  for (let x = -26; x <= 26; x += 1.6)
-    place(
-      variants.bush[Math.abs(Math.round(x)) % 2]!,
-      x + rng.range(-0.3, 0.3),
-      Z + 16,
-      rng.range(1.6, 2.2),
-    )
-  for (let z = -8; z < Z + 16; z += 1.6)
-    place(
-      variants.bush[Math.abs(Math.round(z)) % 2]!,
-      X + 9 + rng.range(-0.3, 0.3),
-      z,
-      rng.range(1.5, 2),
-    )
-  place(variants.oak[0]!, -9, Z + 22, 11)
-  place(variants.oak[1]!, 10, Z + 26, 13)
-  place(variants.ash[0]!, 22, Z + 6, 12)
-  place(variants.oak[1]!, -24, Z + 10, 10)
-  return grove.build('garden', false)
+export async function loadGarden(): Promise<Group> {
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(GARDEN_URL)
+  const leaves = new Map<MeshStandardMaterial, MeshStandardNodeMaterial>()
+  gltf.scene.traverse((o) => {
+    if (!(o instanceof Mesh) || !o.material.name.endsWith('-leaves')) return
+    const source = o.material as MeshStandardMaterial
+    if (!leaves.has(source))
+      leaves.set(
+        source,
+        leafMaterial(source.map!, source.color, (source.map!.image as { width: number }).width),
+      )
+    o.material = leaves.get(source)!
+    canopyNormals(o.geometry)
+  })
+  for (const source of leaves.keys()) source.dispose()
+  return gltf.scene
 }
