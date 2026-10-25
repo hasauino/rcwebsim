@@ -36,7 +36,7 @@ import { LAYOUT, PLANE_SPOT } from './layout'
 import { orbitReach } from './orbit'
 import { LoadProgress } from './progress'
 import { propUrl, type PropId } from './props'
-import { ROOM, ROOM_BOX, createGarden, createRoom } from './room'
+import { ROOM, ROOM_BOX, createRoom, loadGarden } from './room'
 
 /** One stick routine: ailerons, elevator, rudder, then a rest, seconds each. */
 const ROUTINE: (Channel | null)[] = ['aileron', 'elevator', 'rudder', null]
@@ -196,7 +196,7 @@ export class HangarScene {
    */
   private async loadRest(): Promise<void> {
     await this.loadProps()
-    const [garden] = await Promise.all([createGarden().catch(() => null), this.loadSky()])
+    const [garden] = await Promise.all([loadGarden().catch(() => null), this.loadSky()])
     if (this.disposed) return
     if (garden) this.scene.add(garden)
     this.captureEnvironment()

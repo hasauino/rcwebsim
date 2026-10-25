@@ -1,6 +1,6 @@
 # The hangar
 
-The hangar is a garage in real-time 3D (`src/render/hangar/`). `HangarScene` (`scene.ts`) owns the renderer, lights, camera and loading. The shell is built in code from scanned textures (`room.ts`), the props are downloaded models placed by `layout.ts`, and `props.ts` catalogues each asset with its credit.
+The hangar is a garage in real-time 3D (`src/render/hangar/`). `HangarScene` (`scene.ts`) owns the renderer, lights, camera and loading. The shell is built in code from scanned textures (`room.ts`), the props are downloaded models placed by `layout.ts`, the garden outside is baked from the field's ez-tree trees, and `props.ts` catalogues each asset with its credit.
 
 **Room frame:** metres, +x right, +y up, the open door on +z, the workbench on the back wall (−z). `ROOM` in `room.ts` holds the dimensions.
 
@@ -15,6 +15,10 @@ The hangar is a garage in real-time 3D (`src/render/hangar/`). `HangarScene` (`s
 4. **Place it** in `LAYOUT`. `at` is the prop's bottom centre. The workbench top is `BENCH` (0.966 m). Mark large props `big` so they still cast shadows on phones.
 5. **Test.** `src/render/hangar/props.test.ts` fails if a shipped file is uncredited, a credit's licence is not allowed, or a catalogued prop is never placed.
 
+## The garden
+
+`scripts/hangar-garden.ts` grows the hedge and trees outside with ez-tree, the same presets and seeds as the field's trees, and bakes them into `garden.glb`. Each kind is grown once, then its bark is simplified and most of its leaf cards are dropped. The cards that are left grow to cover the same crown. Every plant is an instance of its kind. The layout lives in the script; re-run `node scripts/hangar-garden.ts` after changing it. At runtime, `loadGarden` (`room.ts`) gives the leaves the field's leaf material. `garden.test.ts` checks the triangle budget, and that nothing grows inside the garage or on the drive.
+
 ## Lighting
 
 - **Sun:** `SUN` in `scene.ts` is the one sun direction. It comes through the door, and through the side window, whose bars make stripes on the floor.
@@ -24,11 +28,30 @@ The hangar is a garage in real-time 3D (`src/render/hangar/`). `HangarScene` (`s
 
 ## Loading budget
 
-Everything loads in layers: the plane and the room's surfaces, then the props, then the sky and garden. The loading screen covers only the first layer: `HangarScene.init` resolves once the room and the plane are up, and the props, sky and garden then arrive while the pilot looks round (`HangarScene.complete` resolves when the last is in). `index.html` draws the loading screen inline, so it shows before any script, and `src/ui/splash.ts` turns its tips and fills its bar, weighted by each part's download size (`LOAD_WEIGHT` in `scene.ts`). After 8 s the pilot can go in early. Back to hangar shows it again: the reload comes from cache, but takes about 3 s to build the scene.
+Everything loads in layers: the plane and the room's surfaces, then the props, then the sky and garden. The loading screen covers only the first layer. `HangarScene.init` resolves once the room and the plane are up, and the props, sky and garden then arrive while the pilot looks round (`HangarScene.complete` resolves when the last one is in). `index.html` draws the loading screen inline, so it shows before any script, and `src/ui/splash.ts` turns its tips and fills its bar, weighted by each part's download size (`LOAD_WEIGHT` in `scene.ts`). After 8 s the pilot can go in early.
 
-- **Target:** a cold first visit shows the finished hangar within 10 s on 4G (9 Mbps). Now the plane is up at about 3 s and every prop at about 9 s, but the sky and garden take about 14 s: the ez-tree chunk inlines 3 MB of bark and leaf textures. Baking the garden into a small glb would bring it inside the target.
+Most of a warm load is three.js building WebGPU shaders in JavaScript, not downloading. Keep the number of shader builds down:
+
+- Don't swap `scene.environment` for a new texture, because every material rebuilds.
+- Don't flip a material's `transparent` or `alphaHash` after it has drawn.
+- Build each new prop's shaders with `compileAsync` before adding it.
+- Leave props out of the room capture.
+
+**Targets**, measured on an M4 Mac at 2560×1440 and 100 Hz:
+
+|                                              | Target                    | Now                                               |
+| -------------------------------------------- | ------------------------- | ------------------------------------------------- |
+| Loading screen gone, warm or fast connection | ≤ 1.5 s                   | 0.35 s; every layer in at 0.9 s                   |
+| Back to hangar, loading screen gone          | ≤ 1.5 s                   | 0.4 s                                             |
+| Cold 4G (9 Mbps): loading screen gone        | ≤ 4 s                     | 3.0 s                                             |
+| Cold 4G: every layer in                      | ≤ 10 s                    | 10.4 s, about the time the props take to download |
+| Orbiting, frame time                         | ≤ 10 ms, a locked 100 fps | p50 7.5 ms, p95 9 ms                              |
+
+- **Frame cost:** the scene draws about 0.7 M triangles from the camera and again from the sun. Live screen-space effects are out. GTAO cost two-thirds of each frame here, so the grounding comes from the contact shadows under the plane. The garden keeps to 150 k triangles (`garden.test.ts`).
 - **Size:** keep `public/assets/hangar/` near 7 MB. Props get small textures by default (512 px colour, half that for normal and roughness maps). Give 1024 px only to large props seen up close, and simplify dense meshes.
-- **Measuring:** use a production build (`npx vite build && npx vite preview`) with network throttling and service workers blocked.
+- **Measuring:** use a production build (`npx vite build && npx vite preview`) in headless Chrome (see `verification.md`).
+  - **Load:** wrap `navigator.serviceWorker.register` in an init script, because the app calls it once every layer is in. Time the `gone` class on `#splash`. Throttle with CDP `Network.emulateNetworkConditions` for 4G.
+  - **Frame time:** launch with `--disable-gpu-vsync --disable-frame-rate-limit`, wait until the page has loaded, then time `requestAnimationFrame` gaps while dragging the orbit with the mouse. With those flags set from the start, a load can stall.
 
 ## Looking at it
 
@@ -36,4 +59,4 @@ Follow `verification.md` to drive a browser. Dev builds expose the scene as `win
 
 - `hangar.lastGesture = 1e9` stops the slow turn.
 - `hangar.yaw` and `hangar.pitch` (radians) set the orbit.
-- For a plan view, stop the loop with `hangar.renderer.setAnimationLoop(null)`, place `hangar.camera` overhead, hide the ceiling meshes in the `room` group, and call `hangar.pipeline.render()`.
+- For a plan view, stop the loop with `hangar.renderer.setAnimationLoop(null)`, place `hangar.camera` overhead, hide the ceiling meshes in the `room` group, and call `hangar.renderer.render(hangar.scene, hangar.camera)`.

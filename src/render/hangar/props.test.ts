@@ -1,7 +1,15 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { LAYOUT } from './layout'
-import { ALLOWED_LICENSES, PROPS, SURFACES, propUrl, surfaceUrl, type PropId } from './props'
+import {
+  ALLOWED_LICENSES,
+  GARDEN_URL,
+  PROPS,
+  SURFACES,
+  propUrl,
+  surfaceUrl,
+  type PropId,
+} from './props'
 
 const credits = { ...PROPS, ...SURFACES }
 
@@ -31,6 +39,7 @@ describe('hangar assets', () => {
       ...readdirSync('public/assets/hangar/textures').map((f) => `textures/${f}`),
     ]
     const catalogued = new Set([
+      GARDEN_URL,
       ...(Object.keys(PROPS) as PropId[]).map((id) => propUrl(id)),
       ...(Object.keys(SURFACES) as (keyof typeof SURFACES)[]).flatMap((id) =>
         (['diff', 'nor', 'arm'] as const).map((map) => surfaceUrl(id, map)),

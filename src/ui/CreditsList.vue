@@ -23,6 +23,7 @@ const publicDomain = hangar.filter((c) => c.license === 'CC0')
       </template>
       Logos painted out, resized and recompressed for the web.
     </p>
+    <p>The garden outside is grown with ez-tree by Daniel Greenheck (MIT).</p>
     <p>
       From Poly Haven (CC0):
       <template v-for="(c, i) in publicDomain" :key="c.url">

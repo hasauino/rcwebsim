@@ -151,3 +151,9 @@ export type SurfaceId = keyof typeof SURFACES
 export const propUrl = (id: PropId) => `assets/hangar/${id}.glb`
 export const surfaceUrl = (id: SurfaceId, map: 'diff' | 'nor' | 'arm') =>
   `assets/hangar/textures/${id}_${map}.webp`
+
+/**
+ * The garden outside the door: the field's ez-tree trees and hedge, grown,
+ * thinned and baked by `scripts/hangar-garden.ts`.
+ */
+export const GARDEN_URL = 'assets/hangar/garden.glb'

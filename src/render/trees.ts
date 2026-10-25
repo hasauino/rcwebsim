@@ -37,7 +37,7 @@ export interface TreeVariant {
  * Leaf cards lit as one rounded canopy: each card's normal leans out from the
  * crown's centre, so the tree shades like a volume instead of flat confetti.
  */
-function canopyNormals(geometry: BufferGeometry): void {
+export function canopyNormals(geometry: BufferGeometry): void {
   geometry.computeBoundingBox()
   const center = geometry.boundingBox!.getCenter(new Vector3())
   const pos = geometry.attributes.position!
@@ -52,6 +52,31 @@ function canopyNormals(geometry: BufferGeometry): void {
     n.lerp(out, 0.8).normalize()
     nor.setXYZ(i, n.x, n.y, n.z)
   }
+}
+
+/**
+ * Leaf cards: alpha-tested, both faces lit alike by the canopy normal.
+ * `size` is the leaf texture's width, px.
+ */
+export function leafMaterial(map: Texture, color: Color, size: number): MeshStandardNodeMaterial {
+  const leaves = new MeshStandardNodeMaterial({
+    map,
+    color,
+    side: DoubleSide,
+    alphaTest: 0.5,
+    alphaToCoverage: true,
+    roughness: 0.75,
+  })
+  // Mipmaps average leaf alpha towards zero, so distant crowns thin to
+  // bare twigs. Boost alpha by the mip level being sampled to keep them full.
+  const texel = uv().mul(size)
+  const dx = dFdx(texel)
+  const dy = dFdy(texel)
+  const lod = max(float(0), log2(max(dot(dx, dx), dot(dy, dy))).mul(0.5))
+  leaves.opacityNode = texture(map).a.mul(lod.mul(0.3).add(1))
+  // Both faces of a card share the canopy normal.
+  leaves.normalNode = normalViewGeometry
+  return leaves
 }
 
 /** Every species grown from its seeds; the meshes are shared, so instance them. */
@@ -82,23 +107,7 @@ export async function growVariants(): Promise<Record<Species, TreeVariant[]>> {
       })
       const leavesGeometry = (tree.leavesMesh as Mesh).geometry
       canopyNormals(leavesGeometry)
-      const leaves = new MeshStandardNodeMaterial({
-        map: leafSource.map,
-        color: leafSource.color,
-        side: DoubleSide,
-        alphaTest: 0.5,
-        alphaToCoverage: true,
-        roughness: 0.75,
-      })
-      // Mipmaps average leaf alpha towards zero, so distant crowns thin to
-      // bare twigs. Boost alpha by the mip level being sampled to keep them full.
-      const texel = uv().mul(1024)
-      const dx = dFdx(texel)
-      const dy = dFdy(texel)
-      const lod = max(float(0), log2(max(dot(dx, dx), dot(dy, dy))).mul(0.5))
-      leaves.opacityNode = texture(leafSource.map!).a.mul(lod.mul(0.3).add(1))
-      // Both faces of a card share the canopy normal.
-      leaves.normalNode = normalViewGeometry
+      const leaves = leafMaterial(leafSource.map!, leafSource.color, 1024)
       const height = new Box3().setFromObject(tree).getSize(new Vector3()).y
       return {
         height,
