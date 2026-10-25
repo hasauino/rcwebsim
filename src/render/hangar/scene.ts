@@ -77,8 +77,9 @@ interface SweptSurface {
   throwDeg: number
 }
 
+/** A prop's materials fading in, each towards its own opacity. */
 interface Fading {
-  materials: Material[]
+  materials: { material: Material; opacity: number }[]
   start: number
 }
 
@@ -98,10 +99,15 @@ export class HangarScene {
   private readonly sun = new DirectionalLight(SUN_LIGHT, 4.2)
   /** Where the plane stands: it turns the airframe nose to the door. */
   private readonly stand = new Group()
+  /** The furnishings; the room's reflection leaves them out. */
+  private readonly props = new Group()
   /** Soft dark patches on the floor under the airframe and each wheel. */
   private readonly contact = new Group()
   private pmrem: PMREMGenerator | null = null
-  private envTargets: RenderTarget[] = []
+  /** The room's reflection: the first capture, kept for good; later ones are copied in. */
+  private env: RenderTarget | null = null
+  /** Where each later capture renders before it is copied into `env`. */
+  private scratch: RenderTarget | null = null
   private view: AircraftView | null = null
   private spec: AircraftSpec | null = null
   private surfaces: SweptSurface[] = []
@@ -147,7 +153,7 @@ export class HangarScene {
     this.stand.position.set(...PLANE_SPOT.at)
     this.stand.rotation.y = MathUtils.degToRad(PLANE_SPOT.yawDeg)
     this.stand.add(this.contact)
-    this.scene.add(this.stand)
+    this.scene.add(this.stand, this.props)
   }
 
   /**
@@ -190,7 +196,6 @@ export class HangarScene {
    */
   private async loadRest(): Promise<void> {
     await this.loadProps()
-    this.captureEnvironment()
     const [garden] = await Promise.all([createGarden().catch(() => null), this.loadSky()])
     if (this.disposed) return
     if (garden) this.scene.add(garden)
@@ -247,7 +252,8 @@ export class HangarScene {
     })
     if (this.scene.background && (this.scene.background as Texture).isTexture)
       (this.scene.background as Texture).dispose()
-    for (const t of this.envTargets) t.dispose()
+    this.env?.dispose()
+    this.scratch?.dispose()
     this.pmrem?.dispose()
     this.renderer.dispose()
   }
@@ -293,25 +299,33 @@ export class HangarScene {
 
   /**
    * Captures the room as the environment light from the middle of it, twice
-   * so the light bounces once off what it lit. The aircraft stays out of it.
+   * so the light bounces once off what it lit. The aircraft and the props
+   * stay out of it: blurred to 128 px they hardly show, and each prop
+   * material would need its shaders built again for the capture.
    */
   private captureEnvironment(): void {
     if (this.disposed || !this.pmrem) return
     this.stand.visible = false
-    const old = this.envTargets
-    this.envTargets = []
+    this.props.visible = false
     for (let bounce = 0; bounce < 2; bounce++) {
       const capture = this.pmrem.fromScene(this.scene, 0.02, 0.05, 200, {
         size: 128,
         position: new Vector3(0, 1.3, 0),
+        renderTarget: this.scratch,
       })
-      this.envTargets.push(capture)
-      this.scene.environment = capture.texture
+      // Every material keeps the one environment texture: a new one would
+      // rebuild every shader in the room.
+      if (!this.env) {
+        this.env = capture
+        this.scene.environment = capture.texture
+      } else {
+        this.scratch = capture
+        this.renderer.copyTextureToTexture(capture.texture, this.env.texture)
+      }
     }
     this.scene.environmentIntensity = 0.9
     this.stand.visible = true
-    for (const t of old) t.dispose()
-    this.envTargets.shift()?.dispose()
+    this.props.visible = true
   }
 
   /** The sky seen through the door and window. */
@@ -328,7 +342,10 @@ export class HangarScene {
       })
   }
 
-  /** Loads every prop in parallel, each fading in as it arrives. */
+  /**
+   * Loads every prop in parallel, each fading in as it arrives. Every
+   * placement of a prop shares its materials, so they fade together.
+   */
   private async loadProps(): Promise<void> {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
     const models = new Map<PropId, Promise<Object3D | null>>()
@@ -337,7 +354,7 @@ export class HangarScene {
         models.set(
           id,
           loader.loadAsync(propUrl(id)).then(
-            (g) => g.scene,
+            (g) => this.fadeIn(g.scene),
             () => null,
           ),
         )
@@ -356,25 +373,40 @@ export class HangarScene {
           'YXZ',
         )
         const cast = !this.lowQuality || p.big === true
-        const materials: Material[] = []
         prop.traverse((o) => {
           if (!(o instanceof Mesh)) return
           o.castShadow = cast
           o.receiveShadow = true
-          // Clones share materials; each placement fades its own copies.
-          o.material = ([o.material].flat() as Material[]).map((m) => {
-            const own = m.clone()
-            own.transparent = true
-            own.opacity = 0
-            materials.push(own)
-            return own
-          })
-          if (o.material.length === 1) o.material = o.material[0]!
         })
-        this.scene.add(prop)
-        this.fading.push({ materials, start: this.clock })
+        // Builds its shaders now, one prop at a time, rather than all of
+        // them in the first frame that draws them.
+        await this.renderer.compileAsync(prop, this.camera, this.scene)
+        if (this.disposed) return
+        this.props.add(prop)
       }),
     )
+  }
+
+  /**
+   * Starts a model's materials fading in from clear. Opaque ones fade by
+   * alpha hashing, a dither that stays opaque, so they need no sorting and
+   * their shaders stay the same once the fade ends.
+   */
+  private fadeIn(model: Object3D): Object3D {
+    const materials = new Map<Material, number>()
+    model.traverse((o) => {
+      if (o instanceof Mesh)
+        for (const m of [o.material].flat() as Material[]) materials.set(m, m.opacity)
+    })
+    for (const m of materials.keys()) {
+      if (!m.transparent) m.alphaHash = true
+      m.opacity = 0
+    }
+    this.fading.push({
+      materials: [...materials].map(([material, opacity]) => ({ material, opacity })),
+      start: this.clock,
+    })
+    return model
   }
 
   /** Sits the airframe on its wheels at its ground attitude, wheels on the floor. */
@@ -486,13 +518,7 @@ export class HangarScene {
     for (let i = this.fading.length - 1; i >= 0; i--) {
       const f = this.fading[i]!
       const k = Math.min(1, (this.clock - f.start) / FADE)
-      for (const m of f.materials) {
-        m.opacity = k
-        if (k === 1) {
-          m.transparent = false
-          m.needsUpdate = true
-        }
-      }
+      for (const { material, opacity } of f.materials) material.opacity = k * opacity
       if (k === 1) this.fading.splice(i, 1)
     }
   }

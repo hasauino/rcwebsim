@@ -19,7 +19,7 @@ The hangar is a garage in real-time 3D (`src/render/hangar/`). `HangarScene` (`s
 
 - **Sun:** `SUN` in `scene.ts` is the one sun direction. It comes through the door, and through the side window, whose bars make stripes on the floor.
 - **Bounce light:** rect area lights fake the bounce, as sky light from the door and window and warm light off the sunlit floor.
-- **Room reflection:** `captureEnvironment` renders the room twice into the environment map, after each loading layer.
+- **Room reflection:** `captureEnvironment` renders the room twice into the environment map: once the room is up, and again once the sky and garden are in. The props and the plane stay out of it. Each capture is copied into the one environment texture, because a new texture would rebuild every shader in the room.
 - **Plane spot:** `PLANE_SPOT` has to sit in the sun patch. The door's right jamb shades the right of the floor. After moving the sun or the plane, look from the door side and check that the plane is lit.
 
 ## Loading budget
