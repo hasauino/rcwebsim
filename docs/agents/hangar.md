@@ -28,7 +28,7 @@ The hangar is a garage in real-time 3D (`src/render/hangar/`). `HangarScene` (`s
 
 ## Loading budget
 
-Everything loads in layers: the plane and the room's surfaces, then the props, then the sky and garden. The loading screen covers only the first layer. `HangarScene.init` resolves once the room and the plane are up, and the props, sky and garden then arrive while the pilot looks round (`HangarScene.complete` resolves when the last one is in). `index.html` draws the loading screen inline, so it shows before any script, and `src/ui/splash.ts` turns its tips and fills its bar, weighted by each part's download size (`LOAD_WEIGHT` in `scene.ts`). After 8 s the pilot can go in early.
+Everything loads in layers: the plane and the room's surfaces, then the props, then the sky and garden. The loading screen covers the hangar until the last layer is in, when `HangarScene.init` resolves. A layer after the first that fails is left out. `index.html` draws the loading screen inline, so it shows before any script, and `src/ui/splash.ts` turns its tips and fills its bar, weighted by each layer's download size (`LOAD_WEIGHT` in `scene.ts`). Re-weigh it when a layer's size changes a lot. After 8 s the pilot can go in early and watch the rest arrive; the props fade in as they come.
 
 Most of a warm load is three.js building WebGPU shaders in JavaScript, not downloading. Keep the number of shader builds down:
 
@@ -41,16 +41,15 @@ Most of a warm load is three.js building WebGPU shaders in JavaScript, not downl
 
 |                                              | Target                    | Now                                               |
 | -------------------------------------------- | ------------------------- | ------------------------------------------------- |
-| Loading screen gone, warm or fast connection | ≤ 1.5 s                   | 0.35 s; every layer in at 0.9 s                   |
-| Back to hangar, loading screen gone          | ≤ 1.5 s                   | 0.4 s                                             |
-| Cold 4G (9 Mbps): loading screen gone        | ≤ 4 s                     | 3.0 s                                             |
-| Cold 4G: every layer in                      | ≤ 10 s                    | 10.4 s, about the time the props take to download |
+| Loading screen gone, warm or fast connection | ≤ 1.5 s                   | 1.0 s                                             |
+| Back to hangar, loading screen gone          | ≤ 1.5 s                   | 0.7 s                                             |
+| Cold 4G (9 Mbps): loading screen gone        | ≤ 10 s                    | 10.4 s, about the time the props take to download |
 | Orbiting, frame time                         | ≤ 10 ms, a locked 100 fps | p50 7.5 ms, p95 9 ms                              |
 
 - **Frame cost:** the scene draws about 0.7 M triangles from the camera and again from the sun. Live screen-space effects are out. GTAO cost two-thirds of each frame here, so the grounding comes from the contact shadows under the plane. The garden keeps to 150 k triangles (`garden.test.ts`).
 - **Size:** keep `public/assets/hangar/` near 7 MB. Props get small textures by default (512 px colour, half that for normal and roughness maps). Give 1024 px only to large props seen up close, and simplify dense meshes.
 - **Measuring:** use a production build (`npx vite build && npx vite preview`) in headless Chrome (see `verification.md`).
-  - **Load:** wrap `navigator.serviceWorker.register` in an init script, because the app calls it once every layer is in. Time the `gone` class on `#splash`. Throttle with CDP `Network.emulateNetworkConditions` for 4G.
+  - **Load:** time the `gone` class on `#splash`, which goes once every layer is in. Throttle with CDP `Network.emulateNetworkConditions` for 4G.
   - **Frame time:** launch with `--disable-gpu-vsync --disable-frame-rate-limit`, wait until the page has loaded, then time `requestAnimationFrame` gaps while dragging the orbit with the mouse. With those flags set from the start, a load can stall.
 
 ## Looking at it

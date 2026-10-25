@@ -59,11 +59,8 @@ const WALL_MARGIN = 0.25
  * throws its glazing bars on the floor beyond.
  */
 const SUN = { elevationDeg: 30, azimuthDeg: 45 }
-/**
- * The first layer's parts, weighted by roughly what each downloads, MB: the
- * loading screen covers only these.
- */
-const LOAD_WEIGHT = { room: 0.6, plane: 2 }
+/** Each layer's share of a cold load, by roughly what it downloads, MB. */
+const LOAD_WEIGHT = { room: 0.6, plane: 2, props: 6.1, sky: 1.4, garden: 0.9 }
 const SKY_LIGHT = 0xd6e6ff
 const SUN_LIGHT = 0xfff1de
 
@@ -128,11 +125,6 @@ export class HangarScene {
   private propAngle = 0
   private routine = 0
   private readonly fading: Fading[] = []
-  /**
-   * Resolves once every layer has loaded or failed; it never rejects, since
-   * a later layer that fails is only left out. Resolved until `init` starts them.
-   */
-  complete: Promise<void> = Promise.resolve()
   private readonly pointers = new Map<number, { x: number; y: number }>()
   private resizeObserver: ResizeObserver | null = null
   private loading = 0
@@ -163,12 +155,13 @@ export class HangarScene {
   }
 
   /**
-   * Starts rendering and loads the first layer, the room and the plane;
-   * `onProgress` hears the share of it loaded so far. The rest carries on
-   * loading behind it: `complete` resolves once every layer is in.
+   * Starts rendering and loads every layer; `onProgress` hears the share
+   * loaded so far. Resolves once the last layer is in. A layer after the
+   * first that fails is left out.
    */
   async init(onProgress: (fraction: number) => void = () => {}): Promise<void> {
-    const progress = new LoadProgress(LOAD_WEIGHT.room + LOAD_WEIGHT.plane, onProgress)
+    const total = Object.values(LOAD_WEIGHT).reduce((a, b) => a + b)
+    const progress = new LoadProgress(total, onProgress)
     await this.renderer.init()
     if (this.disposed) return
     const backend = this.renderer.backend as { isWebGPUBackend?: boolean }
@@ -189,7 +182,7 @@ export class HangarScene {
     ])
     if (this.disposed) return
     this.captureEnvironment()
-    this.complete = this.loadRest().catch((e: unknown) => console.error(e))
+    await this.loadRest(progress).catch((e: unknown) => console.error(e))
   }
 
   /**
@@ -197,9 +190,15 @@ export class HangarScene {
    * fade in, then the sky and garden outside (a plain sky colour shows
    * through the door until then).
    */
-  private async loadRest(): Promise<void> {
-    await this.loadProps()
-    const [garden] = await Promise.all([loadGarden().catch(() => null), this.loadSky()])
+  private async loadRest(progress: LoadProgress): Promise<void> {
+    await this.loadProps(progress)
+    const [garden] = await Promise.all([
+      progress.track(
+        loadGarden().catch(() => null),
+        LOAD_WEIGHT.garden,
+      ),
+      progress.track(this.loadSky(), LOAD_WEIGHT.sky),
+    ])
     if (this.disposed) return
     if (garden) this.scene.add(garden)
     this.captureEnvironment()
@@ -349,16 +348,20 @@ export class HangarScene {
    * Loads every prop in parallel, each fading in as it arrives. Every
    * placement of a prop shares its materials, so they fade together.
    */
-  private async loadProps(): Promise<void> {
+  private async loadProps(progress: LoadProgress): Promise<void> {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
     const models = new Map<PropId, Promise<{ model: Object3D; fade: Fading } | null>>()
+    const weight = LOAD_WEIGHT.props / new Set(LAYOUT.map((p) => p.prop)).size
     const model = (id: PropId) => {
       if (!models.has(id))
         models.set(
           id,
-          loader.loadAsync(propUrl(id)).then(
-            (g) => ({ model: g.scene, fade: this.hide(g.scene) }),
-            () => null,
+          progress.track(
+            loader.loadAsync(propUrl(id)).then(
+              (g) => ({ model: g.scene, fade: this.hide(g.scene) }),
+              () => null,
+            ),
+            weight,
           ),
         )
       return models.get(id)!

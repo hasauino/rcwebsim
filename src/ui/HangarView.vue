@@ -41,13 +41,12 @@ onMounted(async () => {
   try {
     hangar = new HangarScene(canvas.value!)
     if (import.meta.env.DEV) (window as unknown as { hangar: HangarScene }).hangar = hangar
-    // The loading screen covers the hangar until the room and the plane are
-    // up; the props, sky and garden then arrive while the pilot looks round.
+    // The plane goes up as soon as the renderer is ready; the room fills in
+    // behind it. The loading screen covers it all until every layer is in.
     const ready = hangar.init(splashProgress)
     await show(chosen.value)
     await ready
     hideSplash()
-    await hangar.complete
     cacheForOffline()
   } catch (e) {
     hideSplash()

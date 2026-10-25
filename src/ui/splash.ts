@@ -2,8 +2,8 @@
  * The loading screen over the hangar while it loads, on a cold start and on
  * the way back from a flight. `index.html` draws it before any script
  * arrives; this turns its tips and fills its bar from the hangar's progress
- * until the room and the plane are up, then fades it out. On a slow
- * connection the pilot may go in early after a while.
+ * until every layer has loaded, then fades it out. After a while the pilot
+ * may go in early and watch the rest arrive.
  */
 
 const TIPS = [
