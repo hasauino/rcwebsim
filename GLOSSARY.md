@@ -9,7 +9,7 @@ Where every visit begins: the pilot's open home garage on a sunny morning, made 
 _Avoid_: start screen, menu, lobby
 
 **Loading screen**:
-What shows while the hangar loads, on every visit and on the way back from a flight: a small plane flying, a progress bar and piloting tips. It gives way to the hangar once every layer is in, or earlier if the pilot chooses to go in now.
+What shows while the hangar loads, on every visit and on the way back from a flight: a small plane flying, a progress bar and piloting tips. It gives way to the hangar once the room and the plane are up, and the rest of the hangar arrives while the pilot looks round. On a slow connection the pilot may go in earlier.
 _Avoid_: splash, preloader
 
 **Field**:

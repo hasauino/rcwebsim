@@ -24,7 +24,7 @@ which the in-app Credits list reads, so the list there is the full record:
 `scripts/hangar-assets.ts` makes the shipped copies from the downloads: scaled
 to real size, brand logos painted out (transmitter, LiPo, shop vac, printer),
 textures resized and WebP-encoded, geometry simplified and meshopt-compressed.
-The garden outside is grown with ez-tree (MIT, Daniel Greenheck), like the field's trees, and baked into `garden.glb` by `scripts/hangar-garden.ts`.
+The garden outside is grown with ez-tree (MIT, Daniel Greenheck; credited as `GARDEN` in `props.ts`), like the field's trees, and baked into `garden.glb` by `scripts/hangar-garden.ts`.
 
 ## Data
 

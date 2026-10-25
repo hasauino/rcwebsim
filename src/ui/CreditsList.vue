@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { AIRCRAFT } from '../sim/aircraft'
-import { PROPS, SURFACES } from '../render/hangar/props'
+import { GARDEN, PROPS, SURFACES } from '../render/hangar/props'
 
-const hangar = Object.values({ ...PROPS, ...SURFACES })
+const hangar = [...Object.values({ ...PROPS, ...SURFACES }), GARDEN]
 const attributed = hangar.filter((c) => c.license !== 'CC0')
 const publicDomain = hangar.filter((c) => c.license === 'CC0')
 </script>
@@ -23,7 +23,6 @@ const publicDomain = hangar.filter((c) => c.license === 'CC0')
       </template>
       Logos painted out, resized and recompressed for the web.
     </p>
-    <p>The garden outside is grown with ez-tree by Daniel Greenheck (MIT).</p>
     <p>
       From Poly Haven (CC0):
       <template v-for="(c, i) in publicDomain" :key="c.url">

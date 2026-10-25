@@ -80,7 +80,8 @@ interface SweptSurface {
 /** A prop's materials fading in, each towards its own opacity. */
 interface Fading {
   materials: { material: Material; opacity: number }[]
-  start: number
+  /** When the first placement went in, s; null until then. */
+  start: number | null
 }
 
 /**
@@ -127,6 +128,11 @@ export class HangarScene {
   private propAngle = 0
   private routine = 0
   private readonly fading: Fading[] = []
+  /**
+   * Resolves once every layer has loaded or failed; it never rejects, since
+   * a later layer that fails is only left out. Resolved until `init` starts them.
+   */
+  complete: Promise<void> = Promise.resolve()
   private readonly pointers = new Map<number, { x: number; y: number }>()
   private resizeObserver: ResizeObserver | null = null
   private loading = 0
@@ -183,11 +189,8 @@ export class HangarScene {
     ])
     if (this.disposed) return
     this.captureEnvironment()
-    this.complete = this.loadRest()
+    this.complete = this.loadRest().catch((e: unknown) => console.error(e))
   }
-
-  /** Resolves once every layer has loaded; until `init` resolves, it waits for nothing. */
-  complete: Promise<void> = Promise.resolve()
 
   /**
    * The layers after the first, each with the bandwidth to itself: the props
@@ -348,13 +351,13 @@ export class HangarScene {
    */
   private async loadProps(): Promise<void> {
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
-    const models = new Map<PropId, Promise<Object3D | null>>()
+    const models = new Map<PropId, Promise<{ model: Object3D; fade: Fading } | null>>()
     const model = (id: PropId) => {
       if (!models.has(id))
         models.set(
           id,
           loader.loadAsync(propUrl(id)).then(
-            (g) => this.fadeIn(g.scene),
+            (g) => ({ model: g.scene, fade: this.hide(g.scene) }),
             () => null,
           ),
         )
@@ -362,9 +365,9 @@ export class HangarScene {
     }
     await Promise.all(
       LAYOUT.map(async (p) => {
-        const source = await model(p.prop)
-        if (!source || this.disposed) return
-        const prop = source.clone()
+        const loaded = await model(p.prop)
+        if (!loaded || this.disposed) return
+        const prop = loaded.model.clone()
         prop.position.set(...p.at)
         prop.rotation.set(
           MathUtils.degToRad(p.tiltDeg?.[0] ?? 0),
@@ -379,20 +382,25 @@ export class HangarScene {
           o.receiveShadow = true
         })
         // Builds its shaders now, one prop at a time, rather than all of
-        // them in the first frame that draws them.
-        await this.renderer.compileAsync(prop, this.camera, this.scene)
+        // them in the first frame that draws them (which it falls back on).
+        await this.renderer.compileAsync(prop, this.camera, this.scene).catch(() => {})
         if (this.disposed) return
         this.props.add(prop)
+        if (loaded.fade.start === null) {
+          loaded.fade.start = this.clock
+          this.fading.push(loaded.fade)
+        }
       }),
     )
   }
 
   /**
-   * Starts a model's materials fading in from clear. Opaque ones fade by
-   * alpha hashing, a dither that stays opaque, so they need no sorting and
-   * their shaders stay the same once the fade ends.
+   * Turns a model's materials clear, ready to fade in once it goes in.
+   * Opaque ones fade by alpha hashing, a dither that stays opaque, so they
+   * need no sorting and their shaders stay the same once the fade ends
+   * (none of the props' opaque textures carry alpha to dither through).
    */
-  private fadeIn(model: Object3D): Object3D {
+  private hide(model: Object3D): Fading {
     const materials = new Map<Material, number>()
     model.traverse((o) => {
       if (o instanceof Mesh)
@@ -402,11 +410,10 @@ export class HangarScene {
       if (!m.transparent) m.alphaHash = true
       m.opacity = 0
     }
-    this.fading.push({
+    return {
       materials: [...materials].map(([material, opacity]) => ({ material, opacity })),
-      start: this.clock,
-    })
-    return model
+      start: null,
+    }
   }
 
   /** Sits the airframe on its wheels at its ground attitude, wheels on the floor. */
@@ -517,7 +524,7 @@ export class HangarScene {
   private fade(): void {
     for (let i = this.fading.length - 1; i >= 0; i--) {
       const f = this.fading[i]!
-      const k = Math.min(1, (this.clock - f.start) / FADE)
+      const k = Math.min(1, (this.clock - f.start!) / FADE)
       for (const { material, opacity } of f.materials) material.opacity = k * opacity
       if (k === 1) this.fading.splice(i, 1)
     }

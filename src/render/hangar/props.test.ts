@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { LAYOUT } from './layout'
 import {
   ALLOWED_LICENSES,
+  GARDEN,
   GARDEN_URL,
   PROPS,
   SURFACES,
@@ -11,7 +12,7 @@ import {
   type PropId,
 } from './props'
 
-const credits = { ...PROPS, ...SURFACES }
+const credits = { ...PROPS, ...SURFACES, garden: GARDEN }
 
 describe('hangar assets', () => {
   it.each(Object.entries(credits))('%s is credited under a licence we may ship', (_, credit) => {
@@ -39,6 +40,7 @@ describe('hangar assets', () => {
       ...readdirSync('public/assets/hangar/textures').map((f) => `textures/${f}`),
     ]
     const catalogued = new Set([
+      GARDEN,
       GARDEN_URL,
       ...(Object.keys(PROPS) as PropId[]).map((id) => propUrl(id)),
       ...(Object.keys(SURFACES) as (keyof typeof SURFACES)[]).flatMap((id) =>

@@ -40,9 +40,12 @@ const ASSETS = join(
 )
 const OUT = 'public/assets/hangar/garden.glb'
 
-/** The garage's front wall and right wall, m (ROOM in src/render/hangar/room.ts). */
-const Z = 3.25
-const X = 3
+/**
+ * The garage's front wall and right wall, m: half ROOM's depth and width in
+ * src/render/hangar/room.ts (garden.test.ts checks the garden stays outside).
+ */
+const FRONT_Z = 3.25
+const RIGHT_X = 3
 
 interface Kind {
   preset: string
@@ -53,7 +56,7 @@ interface Kind {
   leaves: number
 }
 
-/** Each kind grown once; the same presets and seeds as the field's trees. */
+/** Each kind grown once; the same presets and seeds as the field's trees (PRESETS in trees.ts). */
 const KINDS = {
   'bush-a': { preset: 'Bush 1', seed: 5121, bark: 0.06, leaves: 0.2 },
   'bush-b': { preset: 'Bush 1', seed: 77, bark: 0.06, leaves: 0.2 },
@@ -76,19 +79,19 @@ function layout(rng: Rng): Plant[] {
   for (let x = -26; x <= 26; x += 1.6)
     plants.push({
       kind: bush(x),
-      at: new Vector3(x + rng.range(-0.3, 0.3), -0.1, Z + 16),
+      at: new Vector3(x + rng.range(-0.3, 0.3), -0.1, FRONT_Z + 16),
       height: rng.range(1.6, 2.2),
     })
-  for (let z = -8; z < Z + 16; z += 1.6)
+  for (let z = -8; z < FRONT_Z + 16; z += 1.6)
     plants.push({
       kind: bush(z),
-      at: new Vector3(X + 9 + rng.range(-0.3, 0.3), -0.1, z),
+      at: new Vector3(RIGHT_X + 9 + rng.range(-0.3, 0.3), -0.1, z),
       height: rng.range(1.5, 2),
     })
-  plants.push({ kind: 'oak-a', at: new Vector3(-9, -0.1, Z + 22), height: 11 })
-  plants.push({ kind: 'oak-b', at: new Vector3(10, -0.1, Z + 26), height: 13 })
-  plants.push({ kind: 'ash-a', at: new Vector3(22, -0.1, Z + 6), height: 12 })
-  plants.push({ kind: 'oak-b', at: new Vector3(-24, -0.1, Z + 10), height: 10 })
+  plants.push({ kind: 'oak-a', at: new Vector3(-9, -0.1, FRONT_Z + 22), height: 11 })
+  plants.push({ kind: 'oak-b', at: new Vector3(10, -0.1, FRONT_Z + 26), height: 13 })
+  plants.push({ kind: 'ash-a', at: new Vector3(22, -0.1, FRONT_Z + 6), height: 12 })
+  plants.push({ kind: 'oak-b', at: new Vector3(-24, -0.1, FRONT_Z + 10), height: 10 })
   return plants
 }
 
@@ -149,7 +152,7 @@ function thin(g: BufferGeometry, keep: number): BufferGeometry {
   const pos = g.attributes.position!
   const leaves = pos.count / 8
   const every = Math.round(1 / keep)
-  const grow = Math.sqrt(every)
+  const scale = Math.sqrt(every)
   const index: number[] = []
   const middle = new Vector3()
   const p = new Vector3()
@@ -159,7 +162,7 @@ function thin(g: BufferGeometry, keep: number): BufferGeometry {
     for (let i = first; i < first + 8; i++) middle.add(p.fromBufferAttribute(pos, i))
     middle.divideScalar(8)
     for (let i = first; i < first + 8; i++) {
-      p.fromBufferAttribute(pos, i).sub(middle).multiplyScalar(grow).add(middle)
+      p.fromBufferAttribute(pos, i).sub(middle).multiplyScalar(scale).add(middle)
       pos.setXYZ(i, p.x, p.y, p.z)
     }
     for (const q of [first, first + 4]) index.push(q, q + 1, q + 2, q, q + 2, q + 3)
@@ -264,7 +267,7 @@ for (const [id, kind] of Object.entries(KINDS) as [KindId, Kind][]) {
   const grown = grow(kind)
   // Each plant turned and stretched a little at random, and tinted: some
   // darker, some yellower.
-  const mine = plants
+  const instances = plants
     .filter((p) => p.kind === id)
     .map((p) => {
       const s = p.height / grown.height
@@ -294,8 +297,8 @@ for (const [id, kind] of Object.entries(KINDS) as [KindId, Kind][]) {
     .setDoubleSided(true)
     .setRoughnessFactor(0.75)
     .setMetallicFactor(0)
-  part(`${id}-bark`, grown.bark, bark, mine, false)
-  part(`${id}-leaves`, grown.leaves, leaves, mine, true)
+  part(`${id}-bark`, grown.bark, bark, instances, false)
+  part(`${id}-leaves`, grown.leaves, leaves, instances, true)
 }
 await doc.transform(reorder({ encoder: MeshoptEncoder }))
 doc
