@@ -10,6 +10,29 @@ import {
 } from './simulation'
 import { average, calm, holdAltitude, idle, run, wingsLevel } from './test-pilots'
 
+describe('Simulation: parked on the runway', () => {
+  /** How far it rolls along the runway, parked at idle in this wind for 10 s. */
+  async function parked(wind: { speed: number; fromDeg: number; turbulence: number }) {
+    const sim = await createSimulation({ aircraft: pa18, wind, seed: 1 })
+    const start = sim.state().position
+    run(sim, 10, () => idle)
+    const end = sim.state().position
+    return Math.hypot(end.x - start.x, end.z - start.z)
+  }
+
+  it('stays put in a gusty breeze: the wheels hold until a push beats their rolling resistance', async () => {
+    // 3 m/s gusting pushes the airframe back with up to ~0.75 N; on mown grass
+    // a tyre at rest needs rollingResistance x weight (~1.0 N) to start rolling.
+    expect(await parked({ speed: 3, fromDeg: 90, turbulence: 1 })).toBeLessThan(0.02)
+  })
+
+  it('is blown back by a wind that beats the rolling resistance', async () => {
+    // At 8 m/s the wing lifts most of the weight off the wheels and the
+    // airframe drag is several times what they can hold.
+    expect(await parked({ speed: 8, fromDeg: 90, turbulence: 0 })).toBeGreaterThan(0.5)
+  })
+})
+
 describe('Simulation: hand launch', () => {
   it('leaves the pilot’s hand above head height, wings level, at the throw speed', async () => {
     const sim = await createSimulation({ aircraft: pa18, wind: calm, spawn: { kind: 'hand' } })

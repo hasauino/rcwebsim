@@ -151,7 +151,7 @@ export const extra300: AircraftSpec = {
       radius: 0.0298,
       springRate: 1800,
       damping: 35,
-      rollingResistance: 0.04,
+      rollingResistance: 0.05,
       lateralFriction: 0.8,
     },
     {
@@ -161,7 +161,7 @@ export const extra300: AircraftSpec = {
       radius: 0.0298,
       springRate: 1800,
       damping: 35,
-      rollingResistance: 0.04,
+      rollingResistance: 0.05,
       lateralFriction: 0.8,
     },
     {
@@ -354,7 +354,9 @@ export const extra300: AircraftSpec = {
       source: MODEL,
       note:
         'Contact points and wheel sizes from the model (8.4 deg ground attitude), set so the ' +
-        'wheels touch at the static sag. Springs/friction estimated. Tailwheel steering ' +
+        'wheels touch at the static sag. ' +
+        'Rolling resistance 0.05 for the mown grass runway (short grass: Torenbeek 0.045, Stinton 0.05; dry concrete 0.02). ' +
+        'Springs and side friction estimated. Tailwheel steering ' +
         'linked to the rudder (sourced: manual, tail wheel steering)',
     },
     'propeller.diameter': { basis: 'sourced', source: PAGE, note: '13x6E wooden' },

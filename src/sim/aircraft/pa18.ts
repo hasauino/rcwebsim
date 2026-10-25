@@ -148,7 +148,7 @@ export const pa18: AircraftSpec = {
       radius: 0.036,
       springRate: 1800,
       damping: 40,
-      rollingResistance: 0.04,
+      rollingResistance: 0.05,
       lateralFriction: 0.8,
     },
     {
@@ -158,7 +158,7 @@ export const pa18: AircraftSpec = {
       radius: 0.036,
       springRate: 1800,
       damping: 40,
-      rollingResistance: 0.04,
+      rollingResistance: 0.05,
       lateralFriction: 0.8,
     },
     {
@@ -326,7 +326,9 @@ export const pa18: AircraftSpec = {
       basis: 'derived',
       source: MODEL,
       note:
-        'Contact points and wheel sizes from the model (12 deg ground attitude). Springs/friction ' +
+        'Contact points and wheel sizes from the model (12 deg ground attitude). ' +
+        'Rolling resistance 0.05 for the mown grass runway (short grass: Torenbeek 0.045, Stinton 0.05; dry concrete 0.02). ' +
+        'Springs and side friction ' +
         'estimated: stiff wire gear ~5 mm static sag. Tailwheel steering linked to rudder ' +
         '(confirmed on the 1300mm FMS manual).',
     },
