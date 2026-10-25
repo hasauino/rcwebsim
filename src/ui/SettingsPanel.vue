@@ -116,6 +116,10 @@ function restart(kind: SpawnKind) {
             <span>Auto-zoom in pilot view</span>
             <input v-model="settings.camera.autoZoom" type="checkbox" />
           </label>
+          <label class="row">
+            <span>Keep ground in view in pilot view</span>
+            <input v-model="settings.camera.keepGroundInView" type="checkbox" />
+          </label>
           <label>
             <span
               >Field of view <b>{{ settings.camera.fov }}°</b></span

@@ -1,6 +1,6 @@
 # Verifying changes in the real app, and deploying
 
-Unit tests cover `src/sim/`, every aircraft model's moving-part binding (`src/render/model-binding.test.ts`), the touch-stick, walk-mode, gamepad and USB-radio logic in `InputDevices` (radio setup included), and the walking `Pilot`. Anything visual, any other input, and audio have to be checked in a browser.
+Unit tests cover `src/sim/`, every aircraft model's moving-part binding (`src/render/model-binding.test.ts`), the touch-stick, walk-mode, gamepad and USB-radio logic in `InputDevices` (radio setup included), the walking `Pilot`, and how the pilot view frames the aircraft and the ground (`src/render/cameras.test.ts`). Anything visual, any other input, and audio have to be checked in a browser.
 
 ## Driving the app in a browser
 

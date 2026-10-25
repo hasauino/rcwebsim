@@ -241,6 +241,7 @@ export class FlightApp {
       camera: s.camera.mode,
       eye: this.pilot.eye,
       autoZoom: s.camera.autoZoom,
+      keepGroundInView: s.camera.keepGroundInView,
       fov: s.camera.fov,
       debugOverlay: s.debug.overlay,
       shadows: s.graphics.shadows,

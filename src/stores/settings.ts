@@ -37,7 +37,7 @@ export interface Settings {
   wind: WindSettings
   /** Hand launch: how hard the pilot throws, m/s. */
   launch: { speed: number }
-  camera: { mode: CameraMode; autoZoom: boolean; fov: number }
+  camera: { mode: CameraMode; autoZoom: boolean; keepGroundInView: boolean; fov: number }
   graphics: { quality: Quality; shadows: boolean; grass: boolean }
   debug: { overlay: boolean; graphs: boolean }
   audio: { volume: number }
@@ -66,7 +66,7 @@ function defaults(): Settings {
     controls: { touch: 'auto', pad: null },
     wind: { ...DEFAULT_WIND },
     launch: { speed: HAND_LAUNCH_SPEED },
-    camera: { mode: 'pilot', autoZoom: true, fov: 50 },
+    camera: { mode: 'pilot', autoZoom: true, keepGroundInView: true, fov: 50 },
     graphics: { quality: 'medium', shadows: true, grass: true },
     debug: { overlay: false, graphs: false },
     audio: { volume: 0.6 },

@@ -31,6 +31,7 @@ export interface ViewOptions {
   /** Where the pilot's eyes are, world frame. */
   eye: Vec3Like
   autoZoom: boolean
+  keepGroundInView: boolean
   fov: number
   debugOverlay: boolean
   shadows: boolean
@@ -122,6 +123,7 @@ export class World3D {
     rig.mode = view.camera
     rig.eye.set(view.eye.x, view.eye.y, view.eye.z)
     rig.autoZoom = view.autoZoom
+    rig.keepGroundInView = view.keepGroundInView
     rig.baseFov = view.fov
     rig.update(dt, position, quaternion)
     void this.renderer.render(this.scene, rig.camera)
