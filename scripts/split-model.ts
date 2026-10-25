@@ -16,13 +16,14 @@
  *
  * Node names avoid "." and other characters three.js strips from names.
  *
- * Set SOURCE, OUTPUT and PARTS below for another aircraft. Coordinates are in
- * the export's own frame under PARENT (for the PA-18: +x aft, +y right, +z up).
+ * Each aircraft's SOURCE, OUTPUT, PARENT and PARTS are in MODELS below.
+ * Coordinates are in the export's own frame under PARENT. Images the export
+ * references are copied next to the output.
  *
  * Usage (Node 22.18+ runs TypeScript directly):
- *     node scripts/split-model.ts
+ *     node scripts/split-model.ts pa18
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { Quaternion, Vector3 } from 'three'
 
@@ -48,8 +49,11 @@ interface Take {
 }
 
 type Pivot =
-  /** Spins about `axis` through the centre of the part's bounds. */
-  | { spin: V3 }
+  /**
+   * Spins about `spin` through the centre of the part's bounds, or through
+   * `hub` (the centre of the blades' disc) where that differs.
+   */
+  | { spin: V3; hub?: V3 }
   /**
    * Hinges on the line through the bounds centres of the part's vertices
    * inside `line`, taken on each half of their extent along `along`.
@@ -57,6 +61,11 @@ type Pivot =
    * from the hinge.
    */
   | { line: Box; along: Axis; trailingEdge: V3 }
+  /**
+   * Hinges on the line from the first point to the second, both measured on
+   * the hinge. Positive deflection is a right-handed turn about that direction.
+   */
+  | { through: [V3, V3] }
 
 interface Part {
   name: string
@@ -66,12 +75,18 @@ interface Part {
   children?: Part[]
 }
 
-const SOURCE = 'models-src/pa18/scene.gltf'
-const OUTPUT = 'public/models/pa18/scene.gltf'
-const PARENT = 'pa18.obj.cleaner.gles'
+interface Model {
+  source: string
+  output: string
+  /** The node whose children are the export's bare mesh nodes. */
+  parent: string
+  parts: Part[]
+}
 
 const INF = 1e9
 const ALL: Box = { min: [-INF, -INF, -INF], max: [INF, INF, INF] }
+
+// PA-18 export frame: +x aft, +y right, +z up.
 const DOWN: V3 = [0, 0, -1]
 const RIGHT: V3 = [0, 1, 0]
 const FORWARD: V3 = [-1, 0, 0]
@@ -96,7 +111,7 @@ function sides(
   return [part('left', box, line), part('right', mirror(box), mirror(line))]
 }
 
-const PARTS: Part[] = [
+const PA18: Part[] = [
   {
     // Spinner (its own mesh) and the two blades in front of the cowling.
     name: 'propeller',
@@ -157,6 +172,83 @@ const PARTS: Part[] = [
     },
   },
 ]
+
+/**
+ * Extra 300 export frame (scripts/extra300/export.py): +x right, +y up, +z
+ * aft. Every moving part is its own mesh already; hinge points are the noses
+ * of each surface's end ribs, read off the vertices.
+ */
+const EXTRA300: Part[] = [
+  {
+    // Two blades and the spinner, spinning about the thrust line (-z) on
+    // the centre of the blades' disc, behind the spinner's middle.
+    name: 'propeller',
+    take: [{ from: 'propeller_hub', box: ALL }],
+    pivot: { spin: [0, 0, -1], hub: [0, 1.060757, -0.942] },
+    children: [{ name: 'propeller_blades', take: [{ from: 'propeller', box: ALL }] }],
+  },
+  ...(['left', 'right'] as const).map((side): Part => {
+    const x = side === 'left' ? -1 : 1
+    const inboard: V3 = [0.791 * x, 0.914, 1.062]
+    const outboard: V3 = [3.025 * x, 0.919, 0.71]
+    return {
+      // The aileron and the spade hung under it, hinged left to right so the
+      // trailing edge goes down.
+      name: `aileron_${side}`,
+      take: [
+        { from: `aileron_${side[0]}`, box: ALL },
+        { from: side === 'left' ? 'chassis.012' : 'chassis.013', box: ALL },
+      ],
+      pivot: { through: side === 'left' ? [outboard, inboard] : [inboard, outboard] },
+    }
+  }),
+  ...(['left', 'right'] as const).map((side): Part => {
+    const x = side === 'left' ? -1 : 1
+    const inboard: V3 = [0.0622 * x, 1.2906, 3.5343]
+    const outboard: V3 = [1.3125 * x, 1.2909, 3.5377]
+    const box: Box =
+      side === 'left'
+        ? { min: [-INF, -INF, -INF], max: [0, INF, INF] }
+        : { min: [0, -INF, -INF], max: [INF, INF, INF] }
+    return {
+      // One mesh, two pieces either side of the fin; hinged left to right.
+      name: `elevator_${side}`,
+      take: [{ from: 'elevator', box, pieces: true }],
+      pivot: { through: side === 'left' ? [outboard, inboard] : [inboard, outboard] },
+    }
+  }),
+  {
+    // Vertical hinge, hinged upwards so the trailing edge goes right. The
+    // horn balance above it sits ahead of the line.
+    name: 'rudder',
+    take: [{ from: 'rudder', box: ALL }],
+    pivot: {
+      through: [
+        [0, 1.0131, 3.61],
+        [0, 1.3298, 3.61],
+      ],
+    },
+  },
+]
+
+const MODELS: Record<string, Model> = {
+  pa18: {
+    source: 'models-src/pa18/scene.gltf',
+    output: 'public/models/pa18/scene.gltf',
+    parent: 'pa18.obj.cleaner.gles',
+    parts: PA18,
+  },
+  extra300: {
+    source: 'models-src/extra300/scene.gltf',
+    output: 'public/models/extra300/scene.gltf',
+    parent: 'extra300',
+    parts: EXTRA300,
+  },
+}
+
+const model = MODELS[process.argv[2] ?? '']
+if (!model) throw new Error(`usage: node scripts/split-model.ts <${Object.keys(MODELS).join('|')}>`)
+const { source: SOURCE, output: OUTPUT, parent: PARENT, parts: PARTS } = model
 
 // ---------------------------------------------------------------------------
 
@@ -398,11 +490,15 @@ function frameFor(pivot: Pivot, claimed: Claimed[]): Frame {
   const points = claimed.flatMap((c) => c.triangles.flat().map((v) => c.geometry.position[v]!))
   const unique = [...new Set(points)]
   const X = new Vector3(1, 0, 0)
+  if ('through' in pivot) {
+    const [a, b] = pivot.through.map((p) => new Vector3(...p))
+    return hinge(a!, b!)
+  }
   if ('spin' in pivot) {
     const { min, max } = bounds(unique)
     const axis = new Vector3(...pivot.spin).normalize()
     return {
-      pivot: min.add(max).multiplyScalar(0.5),
+      pivot: pivot.hub ? new Vector3(...pivot.hub) : min.add(max).multiplyScalar(0.5),
       rotation: new Quaternion().setFromUnitVectors(X, axis),
     }
   }
@@ -424,14 +520,20 @@ function frameFor(pivot: Pivot, claimed: Claimed[]): Frame {
     return r.sub(axis.clone().multiplyScalar(r.dot(axis)))
   }
   const edge = unique.reduce((m, p) => (arm(p).length() > arm(m).length() ? p : m))
-  if (
-    axis
-      .clone()
-      .cross(arm(edge))
-      .dot(new Vector3(...pivot.trailingEdge)) < 0
-  )
-    axis.negate()
-  return { pivot: origin, rotation: new Quaternion().setFromUnitVectors(X, axis) }
+  const sense = axis
+    .clone()
+    .cross(arm(edge))
+    .dot(new Vector3(...pivot.trailingEdge))
+  return sense < 0 ? hinge(b, a) : hinge(a, b)
+}
+
+/** Frame on the hinge from `a` to `b`, with its local +X along it. */
+function hinge(a: Vector3, b: Vector3): Frame {
+  const axis = b.clone().sub(a).normalize()
+  return {
+    pivot: a.clone().add(b).multiplyScalar(0.5),
+    rotation: new Quaternion().setFromUnitVectors(new Vector3(1, 0, 0), axis),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -573,8 +675,10 @@ function addPart(part: Part, parentFrame: Frame | null): number {
   return index
 }
 
+// The parent keeps its place: under the export's root node, or as the scene root.
 const root = gltf.nodes.findIndex((n) => n.children?.includes(parentIndex))
-out.nodes.push({ ...gltf.nodes[root], children: [1] })
+if (root >= 0) out.nodes.push({ ...gltf.nodes[root], children: [1] })
+const parentNode = out.nodes.length
 out.nodes.push({ name: PARENT, children: [] })
 const partNodes = PARTS.map((p) => addPart(p, null))
 const meshNodes: number[] = []
@@ -584,7 +688,7 @@ for (const g of geometries.values()) {
   out.nodes.push({ name: g.node, mesh: addMesh(g.node, [{ geometry: g, triangles }], null) })
   meshNodes.push(out.nodes.length - 1)
 }
-out.nodes[1]!.children = [...meshNodes, ...partNodes]
+out.nodes[parentNode]!.children = [...meshNodes, ...partNodes]
 
 const binName = basename(OUTPUT).replace(/\.gltf$/, '.bin')
 const buffer = Buffer.concat(out.chunks)
@@ -597,6 +701,14 @@ const result = {
   bufferViews: out.bufferViews,
   buffers: [{ byteLength: buffer.length, uri: binName }],
 }
+mkdirSync(dirname(OUTPUT), { recursive: true })
 writeFileSync(OUTPUT, JSON.stringify(result, null, 1) + '\n')
 writeFileSync(join(dirname(OUTPUT), binName), buffer)
+for (const image of (gltf.images ?? []) as { uri?: string }[]) {
+  const from = image.uri && join(dirname(SOURCE), decodeURIComponent(image.uri))
+  if (!from || !existsSync(from)) continue
+  const to = join(dirname(OUTPUT), decodeURIComponent(image.uri!))
+  mkdirSync(dirname(to), { recursive: true })
+  copyFileSync(from, to)
+}
 console.log(`wrote ${OUTPUT} (${out.nodes.length} nodes, ${buffer.length} bytes)`)

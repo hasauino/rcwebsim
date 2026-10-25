@@ -2,7 +2,8 @@ import { Quaternion, Vector3 } from 'three'
 import { MotorSound } from '../audio/motor'
 import { InputDevices } from '../input/devices'
 import { neutralSticks, type TransmitterSettings } from '../input/transmitter'
-import { pa18 } from '../sim/aircraft/pa18'
+import { hasFlaps } from '../sim/aircraft'
+import type { AircraftSpec } from '../sim/aircraft/types'
 import { treeLayout } from '../sim/field'
 import { FlightRecorder, type FlightRecording } from '../sim/recording'
 import {
@@ -35,7 +36,6 @@ const quaternion = new Quaternion()
  * step simulation -> renderer + audio, and mirrors state into Vue stores.
  */
 export class FlightApp {
-  readonly aircraft = pa18
   sim!: Simulation
   world!: World3D
   private runner!: FixedStepRunner
@@ -57,12 +57,18 @@ export class FlightApp {
   private channels: ControlInputs = { aileron: 0, elevator: 0, rudder: 0, throttle: 0, flap: 0 }
   private telemetry: Telemetry | null = null
 
+  /** False for an aircraft with no flaps: its model memory leaves the flap channel unused. */
+  private readonly flaps: boolean
+
   constructor(
     private readonly canvas: HTMLCanvasElement,
+    readonly aircraft: AircraftSpec,
     private readonly settings: Settings,
     private readonly flight: FlightStore,
     private readonly transmitter: () => TransmitterSettings,
-  ) {}
+  ) {
+    this.flaps = hasFlaps(aircraft)
+  }
 
   async start(): Promise<void> {
     this.seed = Math.floor(Math.random() * 2 ** 31)
@@ -217,6 +223,7 @@ export class FlightApp {
     this.input.pinnedPad = this.settings.controls.pad
     this.input.update(dt)
     this.channels = this.input.channels(this.transmitter())
+    if (!this.flaps) this.channels.flap = 0
     // Leaving the pilot view, by key or in settings, ends walk mode.
     if (this.settings.camera.mode !== 'pilot') this.input.walking = false
     if (this.input.walking) this.pilot.walk(dt, this.input.walk, this.world.facing())

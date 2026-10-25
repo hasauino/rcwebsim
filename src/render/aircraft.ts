@@ -6,7 +6,9 @@ import {
   MathUtils,
   Mesh,
   Quaternion,
+  Texture,
   Vector3,
+  type Material,
   type Object3D,
 } from 'three'
 import { MeshBasicNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu'
@@ -46,7 +48,7 @@ export class AircraftView {
     try {
       const gltf = await new GLTFLoader().loadAsync(binding.url)
       const root = gltf.scene
-      root.scale.setScalar(binding.scale)
+      root.scale.set(...binding.scale)
       root.rotation.set(
         ...(binding.rotationDeg.map((d) => MathUtils.degToRad(d)) as [number, number, number]),
       )
@@ -123,12 +125,25 @@ export class AircraftView {
     this.blur = { blades, disc, material }
   }
 
+  /** Frees the model's geometry, materials and textures. */
+  dispose(): void {
+    this.group.traverse((o) => {
+      if (!(o instanceof Mesh)) return
+      o.geometry.dispose()
+      for (const m of [o.material].flat() as Material[]) {
+        for (const value of Object.values(m)) if (value instanceof Texture) value.dispose()
+        m.dispose()
+      }
+    })
+  }
+
   setPose(position: Vector3, quaternion: Quaternion): void {
     this.group.position.copy(position)
     this.group.quaternion.copy(quaternion)
   }
 
-  animate(t: Telemetry): void {
+  /** Spins the prop and moves the surfaces: the sim's telemetry, or the preview's. */
+  animate(t: Pick<Telemetry, 'rpm' | 'propAngle' | 'deflections'>): void {
     if (this.blur) {
       // Blades read while slow; above ~2500 rpm only the blur disc shows.
       const { blades, disc, material } = this.blur

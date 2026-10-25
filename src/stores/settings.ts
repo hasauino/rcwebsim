@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { reactive, watch } from 'vue'
-import { defaultTransmitter, type LowRates, type TransmitterSettings } from '../input/transmitter'
+import { defaultTransmitter, type TransmitterSettings } from '../input/transmitter'
 import type { DeviceProfile } from '../input/devices'
 import type { AircraftSpec } from '../sim/aircraft/types'
 import {
@@ -15,6 +15,8 @@ import type { CameraMode } from '../render/cameras'
 import type { Quality } from '../render/world'
 
 export interface Settings {
+  /** The aircraft the pilot flies: an id from sim/aircraft. */
+  aircraft: string
   /** Transmitter model memory, per aircraft id. */
   transmitters: Record<string, TransmitterSettings>
   /** CG per aircraft id, m behind the datum. Absent means the manual's. */
@@ -56,6 +58,7 @@ const STORAGE_KEY = 'rcfsim.settings.v1'
 
 function defaults(): Settings {
   return {
+    aircraft: 'pa18',
     transmitters: {},
     cg: {},
     builds: {},
@@ -107,9 +110,13 @@ export const useSettings = defineStore('settings', () => {
     { deep: true },
   )
 
-  function transmitterFor(aircraftId: string, lowRates: LowRates) {
-    settings.transmitters[aircraftId] ??= defaultTransmitter(lowRates)
-    return settings.transmitters[aircraftId]!
+  /** The aircraft's model memory, made from its manual's rates and expo the first time. */
+  function transmitterFor(aircraft: AircraftSpec) {
+    settings.transmitters[aircraft.id] ??= defaultTransmitter(
+      aircraft.lowRates,
+      aircraft.defaultExpo,
+    )
+    return settings.transmitters[aircraft.id]!
   }
 
   function reset() {

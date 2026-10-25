@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { cgFor, useSettings } from '../stores/settings'
-import { pa18 } from '../sim/aircraft/pa18'
 import { balance, meanChord, neutralPoint, type BalanceVerdict } from '../sim/balance'
-import sideView from './side-views/pa18.json'
+import { aircraftKey } from './flight-app-key'
+
+interface SideView {
+  bounds: { x: number; y: number; width: number; height: number }
+  path: string
+}
+
+/** Side silhouettes traced by scripts/side-view.ts, one per aircraft id. */
+const sideViews = import.meta.glob<{ default: SideView }>('./side-views/*.json', { eager: true })
 
 const { settings } = useSettings()
-const aircraft = pa18
+const aircraft = inject(aircraftKey)!
+const sideView = sideViews[`./side-views/${aircraft.id}.json`]!.default
 const mm = (metres: number) => Math.round(metres * 1000)
 
 const np = neutralPoint(aircraft)

@@ -14,6 +14,9 @@ const JSBSIM_J3 =
 export const pa18: AircraftSpec = {
   id: 'pa18',
   name: 'PA-18 Super Cub (1.7 m)',
+  role: 'trainer',
+  summary:
+    'A slow, forgiving high-wing taildragger with flaps. Its dihedral rolls it level by itself.',
   mass: 2.1,
   centerOfGravity: [0, -0.09, 0.082],
   cgRange: [0.08, 0.085],
@@ -228,7 +231,7 @@ export const pa18: AircraftSpec = {
     // datum. scripts/split-model.ts splits the moving parts out of the export
     // into nodes turning about their local +X (see docs/adr/0010).
     url: 'models/pa18/scene.gltf',
-    scale: 0.1586,
+    scale: [0.1586, 0.1586, 0.1586],
     rotationDeg: [0, -90, 0],
     offset: [0, -0.0917, 0.3107],
     nodes: {

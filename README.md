@@ -8,7 +8,7 @@ Fly a radio-controlled Piper Cub in your browser, from the pilot station like a 
 
 Install it from the browser's address bar to play offline as an app.
 
-Built with Vue, three.js (WebGPU) and Rapier, plus a custom aerodynamics model, so the 1.7 m PA-18 flies like the real foam model.
+Built with Vue, three.js (WebGPU) and Rapier, plus a custom aerodynamics model, so each plane flies like the real foam model: the 1.7 m PA-18 Super Cub trainer and the 1.3 m Extra 300 aerobat.
 
 ## Controls
 
@@ -49,4 +49,4 @@ npm test
 - [docs/adr/](docs/adr/): design decisions
 - [AGENTS.md](AGENTS.md) and [docs/agents/](docs/agents/): notes for coding agents
 - [GLOSSARY.md](GLOSSARY.md): terms
-- [ASSETS.md](ASSETS.md): credits. The PA-18 model is by helijah (CC-BY 4.0).
+- [ASSETS.md](ASSETS.md): credits. The PA-18 model is by helijah (CC-BY 4.0), the Extra 300 model by Martins Upitis (CC-BY-SA 3.0).

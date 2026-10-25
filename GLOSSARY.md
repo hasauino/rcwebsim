@@ -4,6 +4,10 @@ A browser simulator for flying a radio-controlled model aircraft from the ground
 
 ## Field and flight session
 
+**Start screen**:
+Where every visit begins: the aircraft to choose from, one shown turning on a patch of grass, and Fly. The last one flown is chosen already.
+_Avoid_: menu, hangar, lobby
+
 **Field**:
 The club flying site: mown runway, pilot station, safety fence, tree lines, hills beyond.
 _Avoid_: map, level, world
@@ -144,6 +148,9 @@ A CG ahead of / behind the manual's recommended range. Within it the aircraft is
 **Ground attitude**:
 The nose-up angle a taildragger sits at on its three wheels.
 
+**Trainer / aerobat**:
+An aircraft's role. A trainer is stable and self-righting (dihedral, flat-bottomed wing); an aerobat is neutral (no dihedral, symmetric wing) and goes where it is pointed.
+
 **Provenance**:
 Where an aircraft number came from: sourced, derived, estimated or tuned.
 
@@ -180,6 +187,17 @@ The quick, heavily damped pitch oscillation after a disturbance, seen in angle o
 
 **Phugoid**:
 The slow exchange of speed and height after a disturbance, seen in pitch and airspeed.
+
+**Sideslip**:
+The angle between the airflow and the aircraft's nose in the horizontal body plane; a pilot holds it with the rudder.
+_Avoid_: beta (in prose; `betaDeg` in code)
+
+**Axial roll**:
+A roll on the ailerons alone in which the nose stays on its line: no heading or height wandering off as it goes round.
+_Avoid_: barrel roll (that is a different manoeuvre)
+
+**Knife edge**:
+Flying wings vertical, held up by top rudder: the fuselage's side force at a sideslip carries the weight. How much aileron and elevator it also needs is its _coupling_.
 
 **Load factor**:
 Lift-axis force relative to weight; 1 G in level flight.

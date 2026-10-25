@@ -5,17 +5,20 @@
  * projected onto the side plane and rasterised, and the outline is traced
  * with marching squares and simplified.
  *
- * Set AIRCRAFT and OUTPUT below for another aircraft.
+ * Add a new aircraft to SPECS below.
  *
  * Usage (Node 22.18+ runs TypeScript directly):
- *     node scripts/side-view.ts
+ *     node scripts/side-view.ts pa18
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
+import { extra300 } from '../src/sim/aircraft/extra300.ts'
 import { pa18 } from '../src/sim/aircraft/pa18.ts'
 
-const AIRCRAFT = pa18
-const OUTPUT = 'src/ui/side-views/pa18.json'
+const SPECS = { pa18, extra300 }
+const AIRCRAFT = SPECS[process.argv[2] as keyof typeof SPECS]
+if (!AIRCRAFT) throw new Error(`usage: node scripts/side-view.ts <${Object.keys(SPECS).join('|')}>`)
+const OUTPUT = `src/ui/side-views/${AIRCRAFT.id}.json`
 /** Raster cell, mm. */
 const CELL = 1
 /** Outline simplification tolerance, mm. */
@@ -64,7 +67,7 @@ const binding = new Matrix4().compose(
   new Quaternion().setFromEuler(
     new Euler(...(rotationDeg.map((d) => (d * Math.PI) / 180) as [number, number, number])),
   ),
-  new Vector3(scale, scale, scale),
+  new Vector3(...scale),
 )
 
 /** Side-projected triangles: [z, y] in mm, three vertices each. */

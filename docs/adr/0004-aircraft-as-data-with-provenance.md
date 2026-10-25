@@ -7,7 +7,7 @@ An aircraft is a typed `AircraftSpec` file. Every number in it is covered by a `
 - **estimated:** an educated guess.
 - **tuned:** adjusted until the plane matches a measurable target.
 
-`validateAircraft` enforces this. Published data for a foam RC Cub is thin, so the estimated values are tuned until the simulation hits targets you can measure: ground attitude, static thrust, glide, cruise, stall speed, roll rate, stability, takeoff. The tests in `src/sim/simulation.test.ts` encode those targets.
+`validateAircraft` enforces this. Published data for a foam RC Cub is thin, so the estimated values are tuned until the simulation hits targets you can measure: ground attitude, static thrust, glide, cruise, stall speed, roll rate, stability, takeoff. Each aircraft's `src/sim/aircraft/<id>.envelope.test.ts` encodes those targets, flown by the shared scenarios in `src/sim/test-pilots.ts`.
 
 ## Consequences
 

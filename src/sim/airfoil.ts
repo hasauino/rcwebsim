@@ -2,6 +2,7 @@ import type { AirfoilId } from './aircraft/types'
 import usa35b from './data/usa35b.json'
 import clarky from './data/clarky.json'
 import naca0009 from './data/naca0009.json'
+import naca0012 from './data/naca0012.json'
 
 interface PolarTable {
   name: string
@@ -72,7 +73,7 @@ export class Airfoil {
 }
 
 const cache = new Map<AirfoilId, Airfoil>()
-const tables: Record<AirfoilId, PolarTable> = { usa35b, clarky, naca0009 }
+const tables: Record<AirfoilId, PolarTable> = { usa35b, clarky, naca0009, naca0012 }
 
 export function airfoil(id: AirfoilId): Airfoil {
   let a = cache.get(id)

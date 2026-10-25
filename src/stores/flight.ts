@@ -42,7 +42,17 @@ export const useFlight = defineStore('flight', () => {
   /** Rolling history for the debug graphs. */
   const history = shallowRef<HistoryPoint[]>([])
 
+  /** A new flight is loading: forget the last one's state. */
+  function reset() {
+    status.value = 'loading'
+    error.value = null
+    modelMissing.value = false
+    telemetry.value = null
+    history.value = []
+  }
+
   return {
+    reset,
     telemetry,
     channels,
     transmitter,

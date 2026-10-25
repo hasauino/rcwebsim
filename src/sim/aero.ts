@@ -78,6 +78,16 @@ export interface AeroInput {
 }
 
 /**
+ * A control surface's full throw in degrees: given, or from the manual's
+ * throw in mm at the trailing edge of its inboard end.
+ */
+export function controlThrowDeg(s: LiftingSurfaceSpec, c: ControlSurfaceSpec): number {
+  if (c.throwDeg !== undefined) return c.throwDeg
+  const hingeChord = c.chordFraction * (s.rootChord + (s.tipChord - s.rootChord) * c.spanStart)
+  return Math.atan(c.throwMm! / 1000 / hingeChord) / DEG
+}
+
+/**
  * Strip-theory aerodynamics: every lifting surface is cut into spanwise strips
  * that each see their own local flow (body rates, prop wash, downwash) and
  * look up full-range section polars. Finite-span effects come from a lagged
@@ -248,16 +258,18 @@ export class Aerodynamics {
       s.cl += (s.liftSum / s.area - s.cl) * 0.5
     }
 
-    // Fuselage, gear and struts: axial drag plus crossflow drag.
+    // Fuselage, gear and struts: axial drag plus crossflow drag, and for a
+    // deep fuselage the side force it makes as a lifting body in sideslip.
     for (const body of this.spec.bodies) {
       point.set(...body.position)
       lever.subVectors(point, centerOfGravity)
       v.crossVectors(bodyRate, lever).add(airVelocity)
       v.sub(propulsion.slipstreamAt(point, wash))
       const cross = Math.hypot(v.x, v.y)
+      const side = body.crossflowCd * cross + (body.sideForceSlope ?? 0) * Math.abs(v.z)
       const k = -0.5 * density
       tmp.set(
-        k * body.crossflowCd * body.sideArea * cross * v.x,
+        k * body.sideArea * side * v.x,
         k * body.crossflowCd * body.topArea * cross * v.y,
         k * body.axialCdA * Math.abs(v.z) * v.z,
       )
@@ -327,9 +339,7 @@ export class Aerodynamics {
     c: ControlSurfaceSpec,
     mirror: boolean,
   ): StripControl {
-    const hingeChord = c.chordFraction * (s.rootChord + (s.tipChord - s.rootChord) * c.spanStart)
-    const throwRad =
-      c.throwDeg !== undefined ? c.throwDeg * DEG : Math.atan(c.throwMm! / 1000 / hingeChord)
+    const throwRad = controlThrowDeg(s, c) * DEG
     const thetaF = Math.acos(2 * c.chordFraction - 1)
     return {
       name: c.name,

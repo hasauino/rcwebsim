@@ -11,4 +11,6 @@ scripts/.venv/bin/python scripts/gen_polars.py data/airfoils/clarky.dat src/sim/
   --name "Clark Y" --re 50e3,100e3,200e3,400e3
 scripts/.venv/bin/python scripts/gen_polars.py naca0009 src/sim/data/naca0009.json \
   --name "NACA 0009" --re 40e3,80e3,150e3,300e3
+scripts/.venv/bin/python scripts/gen_polars.py naca0012 src/sim/data/naca0012.json \
+  --name "NACA 0012" --re 80e3,150e3,250e3,400e3,700e3
 ```
