@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { AIRCRAFT, aircraftById } from '../sim/aircraft'
 import type { AircraftSpec } from '../sim/aircraft/types'
 import { HangarScene } from '../render/hangar/scene'
+import { cacheForOffline } from '../app/offline'
 import { isTyping } from '../input/devices'
 import CreditsList from './CreditsList.vue'
 import { hideSplash, showSplash, splashProgress } from './splash'
@@ -46,8 +47,10 @@ onMounted(async () => {
     await show(chosen.value)
     await ready
     hideSplash()
+    cacheForOffline()
   } catch (e) {
     hideSplash()
+    cacheForOffline()
     // No WebGPU or WebGL 2 for the hangar; the cards still work.
     sceneFailed.value = true
     loading.value = false

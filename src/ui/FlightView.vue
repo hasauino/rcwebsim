@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { FlightApp } from '../app/flight-app'
+import { cacheForOffline } from '../app/offline'
 import { useFlight } from '../stores/flight'
 import { useSettings } from '../stores/settings'
 import { isTyping, type StickSide, type SwitchAction } from '../input/devices'
@@ -49,6 +50,8 @@ onMounted(async () => {
     // Handle for driving the sim from devtools / browser automation.
     if (import.meta.env.DEV) (window as unknown as { rcfsim: FlightApp }).rcfsim = app
     await app.start()
+    // Flown before the hangar finished loading: cache for offline from here.
+    cacheForOffline()
   } catch (e) {
     flight.status = 'error'
     flight.error = e instanceof Error ? e.message : String(e)

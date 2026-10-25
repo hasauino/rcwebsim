@@ -11,9 +11,11 @@ export default defineConfig({
     // Installable and playable offline: the service worker precaches the app,
     // the Rapier WASM chunk, the textures, the environment map and the PA-18.
     // Other aircraft models and the hangar's props are cached the first time
-    // they load, so the first visit doesn't download them twice.
+    // they load, so the first visit doesn't download them twice. The app
+    // registers the worker itself (src/app/offline.ts), once the hangar is in.
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       manifest: {
         name: 'RC Flight Sim',
         short_name: 'RC Sim',
