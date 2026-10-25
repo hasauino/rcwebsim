@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { inject, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettings } from '../stores/settings'
 import { useFlight } from '../stores/flight'
-import { pa18 } from '../sim/aircraft/pa18'
 import { HAND_LAUNCH_SPEED, type SpawnKind } from '../sim/simulation'
+import { aircraftKey } from './flight-app-key'
 import ControlsTab from './ControlsTab.vue'
 import TransmitterTab from './TransmitterTab.vue'
 import BalanceTab from './BalanceTab.vue'
+import CreditsList from './CreditsList.vue'
 
 const emit = defineEmits<{
   close: []
+  hangar: []
   restart: [kind: SpawnKind]
   downloadRecording: []
 }>()
@@ -28,7 +30,7 @@ const tabs = [
   'Credits',
 ] as const
 const tab = ref<(typeof tabs)[number]>('Controls')
-const credit = pa18.model.credit
+const aircraft = inject(aircraftKey)!
 
 function restart(kind: SpawnKind) {
   emit('restart', kind)
@@ -170,24 +172,13 @@ function restart(kind: SpawnKind) {
           <p class="hint">Renderer: {{ renderer }}</p>
         </div>
 
-        <div v-else class="credits">
-          <p>
-            <strong>{{ credit.title }}</strong> 3D model by {{ credit.author }},
-            <a :href="credit.url" target="_blank" rel="noopener">Sketchfab</a>, licensed
-            {{ credit.license }}.
-          </p>
-          <p>
-            Sky HDRI and grass texture from Poly Haven (CC0). Trees from Kenney's Nature Kit (CC0).
-          </p>
-          <p>
-            Airfoil coordinates from the UIUC Airfoil Coordinates Database; polars generated with
-            XFoil.
-          </p>
-          <p>Physics: Rapier. Rendering: three.js.</p>
-        </div>
+        <CreditsList v-else />
       </section>
 
       <footer>
+        <button class="hangar" :title="aircraft.name" @click="emit('hangar')">
+          Back to hangar
+        </button>
         <button @click="restart('runway')">Restart on runway</button>
         <button @click="restart('air')">Air start</button>
         <button @click="restart('hand')">Hand launch</button>
@@ -226,6 +217,10 @@ footer {
   border-bottom: 0;
   border-top: 1px solid var(--border);
   justify-content: flex-end;
+  flex-wrap: wrap;
+}
+footer .hangar {
+  margin-right: auto;
 }
 nav {
   display: flex;
@@ -270,11 +265,5 @@ nav button.active {
   color: var(--muted);
   font-size: 12px;
   margin: 0;
-}
-.credits {
-  line-height: 1.6;
-}
-.credits a {
-  color: var(--accent);
 }
 </style>

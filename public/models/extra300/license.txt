@@ -1,0 +1,21 @@
+Model Information:
+* title:	Aerobatics aircraft (an Extra 300L, from the BGE Air Race demo)
+* source:	https://opengameart.org/content/aerobatics-aircraft
+* author:	Martins Upitis (http://devlog-martinsh.blogspot.com/)
+
+Model License:
+* license type:	CC-BY-SA-3.0 (https://creativecommons.org/licenses/by-sa/3.0/)
+* requirements:	Credit the author; share adaptations under the same licence.
+
+Credit: "Created by Martins Upitis; http://devlog-martinsh.blogspot.com/"
+
+Changes made for rcwebsim (this adaptation is also CC-BY-SA-3.0):
+* Exported from the original .blend to glTF by scripts/extra300/export.py:
+  levelled out of its ground attitude, lamps, empties, the ground disc and
+  the cockpit screens with missing images removed, meshes split by material,
+  materials rebuilt as Principled BSDF.
+* The three-blade propeller is now two-blade, like the RC model's.
+* The Blender logos are painted out of the blue skin
+  (scripts/extra300/delogo.py, using the author's PSD template).
+* scripts/split-model.ts makes the propeller and control surfaces separate
+  nodes hinged for animation; the elevator is split into halves.

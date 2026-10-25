@@ -8,7 +8,13 @@ import { useSettings } from '../stores/settings'
  * `fullscreen` is null where the browser can't go fullscreen. With
  * `touchSticks` the sticks fill the bottom corners, so the gauges move up.
  */
-defineProps<{ showHelp: boolean; fullscreen: boolean | null; touchSticks: boolean }>()
+defineProps<{
+  showHelp: boolean
+  fullscreen: boolean | null
+  touchSticks: boolean
+  /** The aircraft has flaps, so the flap switch does something. */
+  flaps: boolean
+}>()
 defineEmits<{ settings: []; fullscreen: [] }>()
 
 const flight = useFlight()
@@ -74,7 +80,7 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       </div>
       <div class="switches">
         <span :class="{ on: !tx?.highRates }">{{ tx?.highRates ? 'HI' : 'LO' }} rates</span>
-        <span :class="{ on: (tx?.flapSwitch ?? 0) > 0 }">Flaps {{ flapLabel }}</span>
+        <span v-if="flaps" :class="{ on: (tx?.flapSwitch ?? 0) > 0 }">Flaps {{ flapLabel }}</span>
         <span :class="{ warn: tx?.throttleHold }">{{ tx?.throttleHold ? 'HOLD' : 'Armed' }}</span>
       </div>
     </div>
@@ -106,7 +112,8 @@ const stick = (g: 'leftX' | 'leftY' | 'rightX' | 'rightY') => tx.value?.sticks[g
       </div>
       <!-- With a radio as the transmitter, its own switches and trims do these. -->
       <div v-if="!radioIsTransmitter">
-        <kbd>F</kbd> flaps · <kbd>E</kbd> rates · <kbd>H</kbd> throttle hold
+        <template v-if="flaps"><kbd>F</kbd> flaps · </template><kbd>E</kbd> rates ·
+        <kbd>H</kbd> throttle hold
       </div>
       <div v-if="!radioIsTransmitter">
         Trims: <kbd>I</kbd>/<kbd>K</kbd> elev · <kbd>J</kbd>/<kbd>L</kbd> ail · <kbd>U</kbd>/<kbd

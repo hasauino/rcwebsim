@@ -14,7 +14,7 @@ export type Vec3Tuple = readonly [number, number, number]
 /** Normalised receiver channels the airframe responds to. */
 export type Channel = 'aileron' | 'elevator' | 'rudder' | 'throttle' | 'flap'
 
-export type AirfoilId = 'usa35b' | 'clarky' | 'naca0009'
+export type AirfoilId = 'usa35b' | 'clarky' | 'naca0009' | 'naca0012'
 
 export interface ControlSurfaceSpec {
   name: string
@@ -86,6 +86,13 @@ export interface BodySpec {
   sideArea: number
   topArea: number
   crossflowCd: number
+  /**
+   * Side force per radian of sideslip on `sideArea`: a deep, flat-sided
+   * fuselage is a lifting body of very low aspect ratio, so its side force
+   * grows linearly with sideslip before crossflow drag takes over. It is what
+   * holds a knife edge. Absent: crossflow drag only.
+   */
+  sideForceSlope?: number
 }
 
 export interface WheelSpec {
@@ -170,8 +177,12 @@ export interface CollisionShapeSpec {
 export interface ModelBinding {
   /** glTF file, relative to /public. */
   url: string
-  /** Transform applied to the glTF scene to land it in the body frame. */
-  scale: number
+  /**
+   * Transform applied to the glTF scene to land it in the body frame. Scale
+   * is per body axis, so a full-scale model can take an RC model's
+   * proportions.
+   */
+  scale: Vec3Tuple
   rotationDeg: Vec3Tuple
   offset: Vec3Tuple
   /**
@@ -201,6 +212,10 @@ export interface Provenance {
 export interface AircraftSpec {
   id: string
   name: string
+  /** What it is for, as the hangar tags it. */
+  role: 'trainer' | 'aerobat'
+  /** One line on how it flies, for the hangar. */
+  summary: string
   mass: number
   centerOfGravity: Vec3Tuple
   /** The manual's recommended CG range, m behind the datum (front, back). */
@@ -224,6 +239,8 @@ export interface AircraftSpec {
   crashSpeed: number
   /** Default dual-rate percentages for low rates, from the manual. */
   lowRates: Partial<Record<Channel, number>>
+  /** Default expo (0..1) the manual recommends, where it gives one. */
+  defaultExpo?: Partial<Record<Channel, number>>
   model: ModelBinding
   /**
    * Where each number came from, keyed by dotted path into this object.

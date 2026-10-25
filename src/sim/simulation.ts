@@ -341,6 +341,7 @@ export class Simulation {
     this.aero.reset()
     this.servos.reset()
     this.flightController.reset()
+    this.gear.reset()
     this.wind.reset(seed)
     const q = new Quaternion()
     const p = new Vector3()

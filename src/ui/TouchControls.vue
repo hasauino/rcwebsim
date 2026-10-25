@@ -6,7 +6,11 @@ import type { StickSide, SwitchAction } from '../input/devices'
 import type { SpawnKind } from '../sim/simulation'
 import { MODE_LAYOUT, type Gimbal, type StickChannel, type StickMode } from '../input/transmitter'
 
-const props = defineProps<{ mode: StickMode }>()
+const props = defineProps<{
+  mode: StickMode
+  /** The aircraft has flaps, so it gets a flap switch. */
+  flaps: boolean
+}>()
 const emit = defineEmits<{
   touchDown: [side: StickSide]
   touchMove: [side: StickSide, dx: number, dy: number]
@@ -103,6 +107,7 @@ onBeforeUnmount(() => {
         {{ tx?.highRates ? 'High' : 'Low' }} rates
       </button>
       <button
+        v-if="flaps"
         class="panel"
         :class="{ on: (tx?.flapSwitch ?? 0) > 0 }"
         @click="emit('switch', 'flaps')"

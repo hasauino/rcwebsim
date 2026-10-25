@@ -18,6 +18,7 @@ A browser RC flight simulator. The physics is the product: the PA-18 must fly li
 - **Physics or aircraft-spec work:** `docs/agents/physics.md` covers frames, sign conventions, step order, and how to diagnose and tune flight behaviour.
 - **Adding or re-measuring an aircraft or its 3D model:** `docs/agents/adding-an-aircraft.md`.
 - **Checking UI, rendering, input or audio in a real browser, or deploying:** `docs/agents/verification.md`.
+- **Changing the hangar's props, room, lighting or layout:** `docs/agents/hangar.md`.
 - **Planning features or judging scope:** `docs/agents/context.md` covers the agreed v1 scope, current state and open work.
 - **Questioning why something is built the way it is:** `docs/adr/`.
 - **Issues and specs:** `docs/agents/issue-tracker.md`.

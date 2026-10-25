@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { extra300 } from './extra300'
 import { pa18 } from './pa18'
 import { validateAircraft } from './validate'
 import type { AircraftSpec } from './types'
@@ -8,6 +9,10 @@ const clone = (spec: AircraftSpec): AircraftSpec => structuredClone(spec)
 describe('validateAircraft', () => {
   it('accepts the PA-18', () => {
     expect(validateAircraft(pa18)).toEqual([])
+  })
+
+  it('accepts the Extra 300', () => {
+    expect(validateAircraft(extra300)).toEqual([])
   })
 
   it('reports numbers with no recorded provenance', () => {

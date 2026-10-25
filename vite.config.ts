@@ -9,13 +9,15 @@ export default defineConfig({
   plugins: [
     vue(),
     // Installable and playable offline: the service worker precaches the app,
-    // the Rapier WASM chunk and every model, texture and environment map.
+    // the Rapier WASM chunk, the textures, the environment map and the PA-18.
+    // Other aircraft models and the hangar's props are cached the first time
+    // they load, so the first visit doesn't download them twice.
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
         name: 'RC Flight Sim',
         short_name: 'RC Sim',
-        description: 'Fly a radio-controlled PA-18 Super Cub from the pilot station.',
+        description: 'Fly radio-controlled model aircraft from the pilot station.',
         theme_color: '#0d1117',
         background_color: '#0d1117',
         display: 'standalone',
@@ -34,8 +36,21 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,hdr,gltf,glb,bin}'],
+        globIgnores: ['models/!(pa18)/**', 'assets/hangar/**'],
         // The Rapier chunk inlines its WASM (~4 MB).
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /\/models\//.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'models', expiration: { maxEntries: 200 } },
+          },
+          {
+            urlPattern: ({ url }) => /\/assets\/hangar\//.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'hangar', expiration: { maxEntries: 200 } },
+          },
+        ],
       },
     }),
   ],

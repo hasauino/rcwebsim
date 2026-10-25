@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettings } from '../stores/settings'
 import { useFlight } from '../stores/flight'
-import { pa18 } from '../sim/aircraft/pa18'
+import { hasFlaps } from '../sim/aircraft'
 import { MODE_LAYOUT, type StickMode } from '../input/transmitter'
+import { aircraftKey } from './flight-app-key'
 
 const settingsStore = useSettings()
-const tx = computed(() => settingsStore.transmitterFor(pa18.id, pa18.lowRates))
+const aircraft = inject(aircraftKey)!
+/** No flaps: the model memory leaves the flap channel, and its mix, unused. */
+const flaps = hasFlaps(aircraft)
+const tx = computed(() => settingsStore.transmitterFor(aircraft))
 const { channels, radioIsTransmitter } = storeToRefs(useFlight())
 
 const modes: StickMode[] = [1, 2, 3, 4]
@@ -22,13 +26,14 @@ const monitor = computed(() => {
   const c = channels.value
   const surface = (v = 0) => Math.round(1500 + 500 * v)
   const travel = (v = 0) => Math.round(1000 + 1000 * v)
-  return [
+  const rows: (readonly [label: string, us: number, value: number])[] = [
     ['Aileron', surface(c?.aileron), c?.aileron ?? 0],
     ['Elevator', surface(c?.elevator), c?.elevator ?? 0],
     ['Throttle', travel(c?.throttle), (c?.throttle ?? 0) * 2 - 1],
     ['Rudder', surface(c?.rudder), c?.rudder ?? 0],
-    ['Flap', travel(c?.flap), (c?.flap ?? 0) * 2 - 1],
-  ] as const
+  ]
+  if (flaps) rows.push(['Flap', travel(c?.flap), (c?.flap ?? 0) * 2 - 1])
+  return rows
 })
 const outputs = computed(
   () =>
@@ -37,7 +42,7 @@ const outputs = computed(
       ['Elevator', channels.value?.elevator ?? 0],
       ['Rudder', channels.value?.rudder ?? 0],
       ['Throttle', (channels.value?.throttle ?? 0) * 2 - 1],
-      ['Flap', (channels.value?.flap ?? 0) * 2 - 1],
+      ...(flaps ? ([['Flap', (channels.value?.flap ?? 0) * 2 - 1]] as const) : []),
     ] as const,
 )
 </script>
@@ -119,7 +124,7 @@ const outputs = computed(
       </tbody>
     </table>
 
-    <label>
+    <label v-if="flaps">
       <span
         >Flap → elevator mix <b>{{ Math.round(tx.flapElevatorMix * 100) }}%</b> (negative = down
         elevator)</span
@@ -142,7 +147,7 @@ const outputs = computed(
     </div>
     <p class="hint">
       Settings are this model's memory on the virtual radio and are saved in your browser. Low rates
-      default to the throws in the FMS manual.
+      and expo start at the aircraft manual's settings.
     </p>
   </div>
 </template>

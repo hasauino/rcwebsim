@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { extra300 } from './aircraft/extra300'
 import { pa18 } from './aircraft/pa18'
 import { balance, meanChord, neutralPoint } from './balance'
 
@@ -10,6 +11,15 @@ describe('balance', () => {
     // fly with a static margin of about 5-15% MAC (Raymer, Aircraft Design).
     expect(margin).toBeGreaterThan(0.05)
     expect(margin).toBeLessThan(0.15)
+  })
+
+  it("keeps the Extra 300 stable over its manual's whole CG range", () => {
+    const np = neutralPoint(extra300)
+    const [front, back] = extra300.cgRange
+    // Its big tail (volume ~0.56) puts the neutral point well aft: the manual's
+    // range sits 15-19% MAC ahead of it, stable without being stodgy.
+    expect((np - back) / meanChord(extra300)).toBeGreaterThan(0.1)
+    expect((np - front) / meanChord(extra300)).toBeLessThan(0.25)
   })
 
   it('judges a CG against the manual range and the neutral point', () => {

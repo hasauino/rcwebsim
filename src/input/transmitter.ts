@@ -49,10 +49,14 @@ export interface TransmitterState {
 
 export type LowRates = Partial<Record<StickChannel, number>>
 
-export function defaultTransmitter(lowRates: LowRates = {}): TransmitterSettings {
-  const channel = (name: StickChannel, expo: number): ChannelSettings => ({
+/** A fresh model memory: the manual's low rates and expo where it gives them. */
+export function defaultTransmitter(
+  lowRates: LowRates = {},
+  expo: Partial<Record<StickChannel, number>> = {},
+): TransmitterSettings {
+  const channel = (name: StickChannel, fallbackExpo: number): ChannelSettings => ({
     lowRate: lowRates[name] ?? 0.7,
-    expo,
+    expo: expo[name] ?? fallbackExpo,
     trim: 0,
     reverse: false,
   })

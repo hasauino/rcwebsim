@@ -43,10 +43,14 @@ Root causes found so far, worth checking first:
 - **Slipstream on the wing root** gives lift at a standstill. The spec field `slipstreamExposure` accounts for the cabin roof blocking the flow under the root.
 - **Swirl hitting the fin** drives ground loops at full power. `SWIRL_RECOVERY` stands in for the fuselage straightening the flow.
 - **Contact force at 500 Hz is huge for small bumps,** so crashes use impulse (ADR-0007).
+- **A parked plane crept backwards in a breeze** because rolling resistance went to zero at zero speed. Wheels at rest now hold (stick-slip in `gear.ts`) until the push beats `rollingResistance × load`; mown grass is 0.05. A strong or gusty wind still blows a parked plane back, as it does at the field.
+- **Knife edge needs the fuselage's side force.** Crossflow drag grows with the square of sideslip, so on its own it cannot hold a knife edge. A deep, flat-sided fuselage is a lifting body of very low aspect ratio. Give the aircraft a body with `sideForceSlope` (slender-wing π·AR/2 per radian, AR = depth² / side area) placed at the quarter length of its side profile, ahead of the CG as on the real thing. The PA-18 has none yet.
+- **Don't model a fuselage as a lifting surface.** Below an aspect ratio of about 1 the lagged induced-angle loop (ADR-0006) oscillates and tilts the lift forward, which makes energy from nothing.
+- **A symmetric-wing aerobat trims through decalage.** With 0° wing and stabiliser incidence and the elevator centred, it trims at almost zero lift and dives. The stabiliser's incidence is tuned to the hands-off glide, as a pilot would trim it.
 
 ## Balance
 
-`sim/balance.ts` finds the stick-fixed, power-off neutral point by running the strip aerodynamics at two angles of attack. It is not a separate formula, so it follows every geometry change. The PA-18's sits at about 113 mm (46% MAC), which gives a 12% static margin at the manual's 82 mm. `Simulation.setCg` moves the CG fore and aft only, keeping mass and inertia. Behind the neutral point the plane still settles near the stall at about 14° angle of attack: that is stall-stability from the flattening lift curve, not a bug.
+`sim/balance.ts` finds the stick-fixed, power-off neutral point by running the strip aerodynamics at two angles of attack. It is not a separate formula, so it follows every geometry change. The PA-18's sits at about 113 mm (46% MAC), which gives a 12% static margin at the manual's 82 mm. The Extra 300's sits at 145 mm, a 17% margin at the manual's 95 mm. `Simulation.setCg` moves the CG fore and aft only, keeping mass and inertia. Behind the neutral point the plane still settles near the stall at about 14° angle of attack: that is stall-stability from the flattening lift curve, not a bug.
 
 ## Tuning a parameter
 
@@ -54,4 +58,4 @@ Only values whose provenance basis is `estimated` or `tuned` may be tuned. Chang
 
 ## Test pilots
 
-Envelope tests fly the plane with small P/PD "test pilots" (`wingsLevel`, `holdAltitude`, the takeoff pilot). If a test fails right after a dynamics change, check whether the pilot's technique is still sensible before suspecting the model. A fixed elevator step at full power will loop the plane; a pitch-attitude target will not.
+Envelope tests fly the plane with small P/PD "test pilots" in `src/sim/test-pilots.ts` (`wingsLevel`, `holdAltitude`, the takeoff, axial-roll and knife-edge pilots). If a test fails right after a dynamics change, check whether the pilot's technique is still sensible before suspecting the model. A fixed elevator step at full power will loop the plane; a pitch-attitude target will not.

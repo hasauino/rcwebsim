@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { Group, MathUtils, Mesh, Quaternion, Vector3, type Object3D } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { pa18 } from '../sim/aircraft/pa18'
+import { AIRCRAFT } from '../sim/aircraft'
 import type { AircraftSpec } from '../sim/aircraft/types'
 import { createSimulation } from '../sim/simulation'
 
@@ -43,7 +43,7 @@ async function loadModel(spec: AircraftSpec): Promise<Group> {
 
   const { scale, rotationDeg, offset } = spec.model
   const root = gltf.scene
-  root.scale.setScalar(scale)
+  root.scale.set(...scale)
   root.rotation.set(...(rotationDeg.map((d) => MathUtils.degToRad(d)) as [number, number, number]))
   root.position.set(...offset)
   const body = new Group()
@@ -78,9 +78,9 @@ function isUnder(o: Object3D, ancestor: Object3D): boolean {
   return false
 }
 
-describe('PA-18 visual model binding', () => {
+describe.each(AIRCRAFT)('$name visual model binding', (spec) => {
   let body: Group
-  const nodes = pa18.model.nodes
+  const nodes = spec.model.nodes
   const find = (name: string) => {
     const node = body.getObjectByName(name)
     if (!node) throw new Error(`no node "${name}" in the model`)
@@ -88,11 +88,11 @@ describe('PA-18 visual model binding', () => {
   }
 
   beforeAll(async () => {
-    body = await loadModel(pa18)
+    body = await loadModel(spec)
   })
 
   it('binds a node for every surface deflection the sim reports', async () => {
-    const sim = await createSimulation({ aircraft: pa18 })
+    const sim = await createSimulation({ aircraft: spec })
     const keys = Object.keys(sim.telemetry().deflections).sort()
     expect(keys.length).toBeGreaterThan(0)
     expect(Object.keys(nodes.controls ?? {}).sort()).toEqual(keys)
@@ -102,21 +102,17 @@ describe('PA-18 visual model binding', () => {
   it('moves each trailing edge towards -normal for positive deflection', () => {
     for (const [key, c] of Object.entries(nodes.controls ?? {})) {
       const name = key.split('.')[0]
-      const surface = pa18.surfaces.find((s) => s.controls?.some((k) => k.name === name))!
+      const surface = spec.surfaces.find((s) => s.controls?.some((k) => k.name === name))!
       // Down on wings and stabiliser, right on the fin (docs/agents/physics.md).
       const expected = surface.vertical ? new Vector3(1, 0, 0) : new Vector3(0, -1, 0)
       const node = find(c.node)
       const rest = node.quaternion.clone()
       const axis = new Vector3(...c.hingeAxis)
 
-      // The trailing edge is the vertex farthest from the hinge line.
-      const local = vertices(node).map((v) => node.worldToLocal(v.clone()))
-      const offAxis = (v: Vector3) =>
-        v
-          .clone()
-          .sub(axis.clone().multiplyScalar(v.dot(axis)))
-          .length()
-      const edge = local.reduce((a, b) => (offAxis(b) > offAxis(a) ? b : a))
+      // The trailing edge is the surface's most aft vertex. (The farthest from
+      // the hinge can be a balance spade hung below it.)
+      const aft = vertices(node).reduce((a, b) => (b.z > a.z ? b : a))
+      const edge = node.worldToLocal(aft.clone())
       const before = node.localToWorld(edge.clone())
       turn(node, rest, axis, 10)
       const moved = node.localToWorld(edge.clone()).sub(before)
@@ -132,18 +128,18 @@ describe('PA-18 visual model binding', () => {
     const node = find(p.node)
     const axis = new Vector3(...p.axis).applyQuaternion(node.getWorldQuaternion(new Quaternion()))
     // Positive turn about +thrust (body -z) is clockwise seen from behind.
-    const thrust = new Vector3(0, 0, -1).multiplyScalar(pa18.propeller.clockwiseFromBehind ? 1 : -1)
+    const thrust = new Vector3(0, 0, -1).multiplyScalar(spec.propeller.clockwiseFromBehind ? 1 : -1)
     expect(axis.dot(thrust)).toBeGreaterThan(0.999)
 
     const hub = node.getWorldPosition(new Vector3())
-    expect(hub.distanceTo(new Vector3(...pa18.propeller.position))).toBeLessThan(0.01)
+    expect(hub.distanceTo(new Vector3(...spec.propeller.position))).toBeLessThan(0.01)
     if (p.blades) expect(isUnder(find(p.blades), node)).toBe(true)
   })
 
   it('has one propeller: no static blades are left in the prop disc', () => {
     const prop = find(nodes.propeller!.node)
-    const [, py, pz] = pa18.propeller.position
-    const radius = pa18.propeller.diameter / 2
+    const [, py, pz] = spec.propeller.position
+    const radius = spec.propeller.diameter / 2
     const stray: Vector3[] = []
     body.traverse((o) => {
       if (!(o instanceof Mesh) || isUnder(o, prop)) return

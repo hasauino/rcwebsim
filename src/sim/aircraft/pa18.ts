@@ -14,6 +14,9 @@ const JSBSIM_J3 =
 export const pa18: AircraftSpec = {
   id: 'pa18',
   name: 'PA-18 Super Cub (1.7 m)',
+  role: 'trainer',
+  summary:
+    'A slow, forgiving high-wing taildragger with flaps. Its dihedral rolls it level by itself.',
   mass: 2.1,
   centerOfGravity: [0, -0.09, 0.082],
   cgRange: [0.08, 0.085],
@@ -145,7 +148,7 @@ export const pa18: AircraftSpec = {
       radius: 0.036,
       springRate: 1800,
       damping: 40,
-      rollingResistance: 0.04,
+      rollingResistance: 0.05,
       lateralFriction: 0.8,
     },
     {
@@ -155,7 +158,7 @@ export const pa18: AircraftSpec = {
       radius: 0.036,
       springRate: 1800,
       damping: 40,
-      rollingResistance: 0.04,
+      rollingResistance: 0.05,
       lateralFriction: 0.8,
     },
     {
@@ -228,7 +231,7 @@ export const pa18: AircraftSpec = {
     // datum. scripts/split-model.ts splits the moving parts out of the export
     // into nodes turning about their local +X (see docs/adr/0010).
     url: 'models/pa18/scene.gltf',
-    scale: 0.1586,
+    scale: [0.1586, 0.1586, 0.1586],
     rotationDeg: [0, -90, 0],
     offset: [0, -0.0917, 0.3107],
     nodes: {
@@ -323,7 +326,9 @@ export const pa18: AircraftSpec = {
       basis: 'derived',
       source: MODEL,
       note:
-        'Contact points and wheel sizes from the model (12 deg ground attitude). Springs/friction ' +
+        'Contact points and wheel sizes from the model (12 deg ground attitude). ' +
+        'Rolling resistance 0.05 for the mown grass runway (short grass: Torenbeek 0.045, Stinton 0.05; dry concrete 0.02). ' +
+        'Springs and side friction ' +
         'estimated: stiff wire gear ~5 mm static sag. Tailwheel steering linked to rudder ' +
         '(confirmed on the 1300mm FMS manual).',
     },
