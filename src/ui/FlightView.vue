@@ -16,7 +16,7 @@ import { useFullscreen } from './fullscreen'
 import { aircraftKey, flightAppKey } from './flight-app-key'
 
 const props = defineProps<{ aircraft: AircraftSpec }>()
-const emit = defineEmits<{ changeAircraft: [] }>()
+const emit = defineEmits<{ hangar: [] }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const flight = useFlight()
@@ -169,7 +169,7 @@ const downloadRecording = () => {
       <SettingsPanel
         v-if="settingsOpen"
         @close="settingsOpen = false"
-        @change-aircraft="emit('changeAircraft')"
+        @hangar="emit('hangar')"
         @restart="restart"
         @download-recording="downloadRecording"
       />

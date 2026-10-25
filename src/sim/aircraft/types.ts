@@ -212,9 +212,9 @@ export interface Provenance {
 export interface AircraftSpec {
   id: string
   name: string
-  /** What it is for, as the start screen tags it. */
+  /** What it is for, as the hangar tags it. */
   role: 'trainer' | 'aerobat'
-  /** One line on how it flies, for the start screen. */
+  /** One line on how it flies, for the hangar. */
   summary: string
   mass: number
   centerOfGravity: Vec3Tuple

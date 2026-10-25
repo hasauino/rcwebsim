@@ -4,9 +4,9 @@ A browser simulator for flying a radio-controlled model aircraft from the ground
 
 ## Field and flight session
 
-**Start screen**:
-Where every visit begins: the aircraft to choose from, one shown turning on a patch of grass, and Fly. The last one flown is chosen already.
-_Avoid_: menu, hangar, lobby
+**Hangar**:
+Where every visit begins: the pilot's open home garage on a sunny morning, made over as an RC workshop. The chosen aircraft stands in the sun patch, with the aircraft to choose from beside it, and Fly. The last one flown is chosen already. Back to hangar in the settings returns here.
+_Avoid_: start screen, menu, lobby
 
 **Field**:
 The club flying site: mown runway, pilot station, safety fence, tree lines, hills beyond.

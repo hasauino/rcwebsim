@@ -142,7 +142,7 @@ export class AircraftView {
     this.group.quaternion.copy(quaternion)
   }
 
-  /** Spins the prop and moves the surfaces: the sim's telemetry, or the preview's. */
+  /** Spins the prop and moves the surfaces: the sim's telemetry, or the hangar's idle routine. */
   animate(t: Pick<Telemetry, 'rpm' | 'propAngle' | 'deflections'>): void {
     if (this.blur) {
       // Blades read while slow; above ~2500 rpm only the blur disc shows.

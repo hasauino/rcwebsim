@@ -10,8 +10,8 @@ export default defineConfig({
     vue(),
     // Installable and playable offline: the service worker precaches the app,
     // the Rapier WASM chunk, the textures, the environment map and the PA-18.
-    // Other aircraft models are cached the first time they are previewed or
-    // flown, so the first visit stays light.
+    // Other aircraft models and the hangar's props are cached the first time
+    // they load, so the first visit doesn't download them twice.
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -36,7 +36,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,hdr,gltf,glb,bin}'],
-        globIgnores: ['models/!(pa18)/**'],
+        globIgnores: ['models/!(pa18)/**', 'assets/hangar/**'],
         // The Rapier chunk inlines its WASM (~4 MB).
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
@@ -44,6 +44,11 @@ export default defineConfig({
             urlPattern: ({ url }) => /\/models\//.test(url.pathname),
             handler: 'CacheFirst',
             options: { cacheName: 'models', expiration: { maxEntries: 200 } },
+          },
+          {
+            urlPattern: ({ url }) => /\/assets\/hangar\//.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'hangar', expiration: { maxEntries: 200 } },
           },
         ],
       },

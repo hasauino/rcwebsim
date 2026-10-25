@@ -2,18 +2,21 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { AIRCRAFT, aircraftById } from '../sim/aircraft'
 import type { AircraftSpec } from '../sim/aircraft/types'
-import { AircraftPreview } from '../render/preview'
+import { HangarScene } from '../render/hangar/scene'
 import { isTyping } from '../input/devices'
+import CreditsList from './CreditsList.vue'
 
 const props = defineProps<{ selected: string }>()
 const emit = defineEmits<{ fly: [aircraft: AircraftSpec] }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
+const panel = ref<HTMLElement | null>(null)
 // Specs are static data: kept raw, so cards compare by identity (ADR-0009).
 const chosen = shallowRef(aircraftById(props.selected))
 const loading = ref(true)
-const previewFailed = ref(false)
-let preview: AircraftPreview | null = null
+const sceneFailed = ref(false)
+const showCredits = ref(false)
+let hangar: HangarScene | null = null
 
 const inches = (m: number) => +(m / 0.0254).toFixed(1)
 const facts = (a: AircraftSpec) => [
@@ -24,25 +27,44 @@ const facts = (a: AircraftSpec) => [
 const credit = computed(() => chosen.value.model.credit)
 
 async function show(a: AircraftSpec) {
-  if (!preview) return
+  if (!hangar) return
   loading.value = true
-  await preview.show(a)
+  await hangar.show(a)
   if (chosen.value === a) loading.value = false
 }
 
 onMounted(async () => {
   try {
-    preview = new AircraftPreview(canvas.value!)
-    await preview.init()
+    hangar = new HangarScene(canvas.value!)
+    if (import.meta.env.DEV) (window as unknown as { hangar: HangarScene }).hangar = hangar
+    // The plane goes up as soon as the renderer is ready; the room fills in behind it.
+    const ready = hangar.init()
     await show(chosen.value)
+    await ready
   } catch (e) {
-    // No WebGPU or WebGL 2 for the turntable; the cards still work.
-    previewFailed.value = true
+    // No WebGPU or WebGL 2 for the hangar; the cards still work.
+    sceneFailed.value = true
     loading.value = false
     console.error(e)
   }
 })
-onBeforeUnmount(() => preview?.dispose())
+// The cards float over the scene: on the right, or along the bottom on a
+// portrait phone. Tell the scene which, so the plane centres beside them.
+const panelObserver = new ResizeObserver(() => {
+  if (!hangar || !canvas.value || !panel.value) return
+  const view = canvas.value.getBoundingClientRect()
+  const cards = panel.value.getBoundingClientRect()
+  const along = cards.width > view.width * 0.6
+  hangar.setInsets(along ? 0 : view.right - cards.left, along ? view.bottom - cards.top : 0)
+})
+onMounted(() => {
+  panelObserver.observe(panel.value!)
+  panelObserver.observe(canvas.value!)
+})
+onBeforeUnmount(() => {
+  panelObserver.disconnect()
+  hangar?.dispose()
+})
 watch(chosen, (a) => void show(a))
 
 function step(by: number) {
@@ -51,6 +73,10 @@ function step(by: number) {
 }
 function onKey(e: KeyboardEvent) {
   if (isTyping(e)) return
+  if (showCredits.value) {
+    if (e.code === 'Escape') showCredits.value = false
+    return
+  }
   if (e.code === 'Enter' || e.code === 'Space') emit('fly', chosen.value)
   else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') step(1)
   else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') step(-1)
@@ -62,23 +88,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="start">
-    <div class="stage">
-      <canvas ref="canvas" class="view" />
-      <div v-if="loading" class="spinner" />
-      <p v-if="previewFailed" class="notice">
-        The 3D preview needs WebGPU or WebGL 2. You can still choose and fly.
-      </p>
-      <p class="credit">
-        Model: {{ credit.title }} by {{ credit.author }} ({{ credit.license }}) · drag to turn,
-        scroll or pinch to zoom
-      </p>
-    </div>
+  <div class="hangar">
+    <canvas ref="canvas" class="view" />
+    <div v-if="loading" class="spinner" />
+    <p v-if="sceneFailed" class="notice panel">
+      The hangar needs WebGPU or WebGL 2. You can still choose and fly.
+    </p>
+    <p class="credit">
+      Model: {{ credit.title }} by {{ credit.author }} ({{ credit.license }}) · drag to turn, scroll
+      or pinch to zoom
+    </p>
 
-    <aside class="panel">
+    <aside ref="panel" class="panel">
       <header>
-        <h1>RC Flight Sim</h1>
-        <p>Choose your aircraft</p>
+        <div>
+          <h1>Hangar</h1>
+          <p>Choose your aircraft</p>
+        </div>
+        <button class="link" @click="showCredits = true">Credits</button>
       </header>
       <div class="cards" role="listbox" aria-label="Aircraft">
         <button
@@ -108,21 +135,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <small>Enter to fly · arrow keys to choose</small>
       </footer>
     </aside>
+
+    <div v-if="showCredits" class="backdrop" @click.self="showCredits = false">
+      <div class="dialog panel" role="dialog" aria-label="Credits">
+        <header>
+          <h2>Credits</h2>
+          <button title="Close (Esc)" @click="showCredits = false">✕</button>
+        </header>
+        <CreditsList class="body" />
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.start {
-  display: grid;
-  grid-template-columns: 1fr minmax(280px, 360px);
+.hangar {
+  position: relative;
   width: 100%;
   height: 100%;
   background: var(--bg);
-}
-.stage {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
   touch-action: none;
 }
 .view {
@@ -151,40 +182,63 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     transform: rotate(360deg);
   }
 }
-.notice,
+.notice {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  padding: 8px 12px;
+}
 .credit {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  margin: 0;
-  color: #1d2530;
-  font-size: 12px;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
-}
-.notice {
-  top: 12px;
-}
-.credit {
+  left: 14px;
   bottom: 10px;
+  right: calc(var(--panel-width) + 32px);
+  margin: 0;
+  color: #fff;
+  font-size: 12px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.hangar {
+  --panel-width: 340px;
 }
 aside {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: var(--panel-width);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-radius: 0;
-  border-width: 0 0 0 1px;
-  background: var(--panel-solid);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  touch-action: auto;
 }
-header {
+aside header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   padding: 18px 18px 6px;
 }
 h1 {
   margin: 0;
   font-size: 20px;
 }
-header p {
+aside header p {
   margin: 4px 0 0;
   color: var(--muted);
+}
+.link {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: var(--accent);
+}
+.link:hover {
+  background: none;
+  text-decoration: underline;
 }
 .cards {
   flex: 1;
@@ -205,7 +259,7 @@ header p {
 }
 .card.selected {
   border-color: var(--accent);
-  background: rgba(245, 165, 36, 0.1);
+  background: rgba(245, 165, 36, 0.14);
 }
 .title {
   display: flex;
@@ -248,6 +302,36 @@ footer small {
   color: var(--muted);
   text-align: center;
 }
+.backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.35);
+  touch-action: auto;
+}
+.dialog {
+  width: min(640px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.dialog .body {
+  overflow-y: auto;
+  padding: 4px 16px 12px;
+}
 
 @media (pointer: coarse) {
   footer small {
@@ -255,14 +339,18 @@ footer small {
   }
 }
 @media (max-width: 720px) and (orientation: portrait) {
-  .start {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 42%) minmax(0, 1fr);
-  }
   aside {
-    border-width: 1px 0 0;
+    top: auto;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: auto;
+    max-height: 52%;
   }
-  header {
+  .credit {
+    display: none;
+  }
+  aside header {
     padding: 12px 16px 0;
   }
   .cards {
@@ -273,10 +361,18 @@ footer small {
   }
 }
 @media (max-height: 480px) and (orientation: landscape) {
-  header {
+  .hangar {
+    --panel-width: 300px;
+  }
+  aside {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+  aside header {
     padding: 10px 14px 0;
   }
-  header p {
+  aside header p {
     display: none;
   }
   .cards {

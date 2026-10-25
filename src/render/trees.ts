@@ -17,7 +17,7 @@ import { dFdx, dFdy, dot, float, log2, max, normalViewGeometry, texture, uv } fr
 import { terrainHeight, treeLayout, type Tree } from '../sim/field'
 import { Rng } from '../sim/rng'
 
-type Species = 'oak' | 'ash' | 'pine' | 'bush'
+export type Species = 'oak' | 'ash' | 'pine' | 'bush'
 
 /** ez-tree presets per species, each grown from two seeds for variety. */
 const PRESETS: Record<Species, { preset: string; seeds: number[] }> = {
@@ -27,7 +27,7 @@ const PRESETS: Record<Species, { preset: string; seeds: number[] }> = {
   bush: { preset: 'Bush 1', seeds: [5121, 77] },
 }
 
-interface Variant {
+export interface TreeVariant {
   height: number
   bark: { geometry: BufferGeometry; material: MeshStandardNodeMaterial }
   leaves: { geometry: BufferGeometry; material: MeshStandardNodeMaterial }
@@ -54,9 +54,10 @@ function canopyNormals(geometry: BufferGeometry): void {
   }
 }
 
-async function growVariants(): Promise<Record<Species, Variant[]>> {
+/** Every species grown from its seeds; the meshes are shared, so instance them. */
+export async function growVariants(): Promise<Record<Species, TreeVariant[]>> {
   const { Tree: EzTree } = await import('@dgreenheck/ez-tree')
-  const result = {} as Record<Species, Variant[]>
+  const result = {} as Record<Species, TreeVariant[]>
   for (const [species, { preset, seeds }] of Object.entries(PRESETS) as [
     Species,
     (typeof PRESETS)[Species],
@@ -136,31 +137,64 @@ function bushLayout(trees: Tree[]): { x: number; z: number; size: number }[] {
   return bushes
 }
 
+/**
+ * Trees planted one at a time, each turned and tinted at random, then
+ * instanced per variant: one mesh for all the bark, one for all the leaves.
+ */
+export class Grove {
+  private readonly plants = new Map<TreeVariant, { matrices: Matrix4[]; tints: Color[] }>()
+  private readonly q = new Quaternion()
+  private readonly up = new Vector3(0, 1, 0)
+
+  constructor(private readonly rng: Rng) {}
+
+  /** Stands `variant` at (x, y, z), scaled to `height` metres. */
+  plant(variant: TreeVariant, x: number, y: number, z: number, height: number): void {
+    const { rng } = this
+    const s = height / variant.height
+    this.q.setFromAxisAngle(this.up, rng.range(0, Math.PI * 2))
+    const m = new Matrix4().compose(
+      new Vector3(x, y, z),
+      this.q,
+      new Vector3(s, s * rng.range(0.92, 1.08), s),
+    )
+    if (!this.plants.has(variant)) this.plants.set(variant, { matrices: [], tints: [] })
+    const plants = this.plants.get(variant)!
+    plants.matrices.push(m)
+    // Each crown a slightly different green: some darker, some yellower.
+    const v = rng.range(0.8, 1.1)
+    plants.tints.push(new Color(v * rng.range(0.95, 1.08), v, v * rng.range(0.85, 1)))
+  }
+
+  build(name: string, castShadow: boolean): Group {
+    const group = new Group()
+    group.name = name
+    for (const [variant, { matrices, tints }] of this.plants) {
+      for (const [part, tinted] of [
+        [variant.bark, false],
+        [variant.leaves, true],
+      ] as const) {
+        const mesh = new InstancedMesh(part.geometry, part.material, matrices.length)
+        matrices.forEach((m, j) => {
+          mesh.setMatrixAt(j, m)
+          if (tinted) mesh.setColorAt(j, tints[j]!)
+        })
+        mesh.castShadow = castShadow
+        mesh.receiveShadow = castShadow
+        mesh.computeBoundingSphere()
+        group.add(mesh)
+      }
+    }
+    return group
+  }
+}
+
 /** All field trees and bushes, instanced per variant. */
 export async function createTrees(): Promise<Group> {
   const variants = await growVariants()
-  const rng = new Rng(11)
-  const placements = new Map<Variant, Matrix4[]>()
-  const tints = new Map<Variant, Color[]>()
-  const q = new Quaternion()
-  const up = new Vector3(0, 1, 0)
-  const place = (variant: Variant, x: number, z: number, height: number) => {
-    const s = height / variant.height
-    q.setFromAxisAngle(up, rng.range(0, Math.PI * 2))
-    const m = new Matrix4().compose(
-      new Vector3(x, terrainHeight(x, z) - 0.15, z),
-      q,
-      new Vector3(s, s * rng.range(0.92, 1.08), s),
-    )
-    if (!placements.has(variant)) {
-      placements.set(variant, [])
-      tints.set(variant, [])
-    }
-    placements.get(variant)!.push(m)
-    // Each crown a slightly different green: some darker, some yellower.
-    const v = rng.range(0.8, 1.1)
-    tints.get(variant)!.push(new Color(v * rng.range(0.95, 1.08), v, v * rng.range(0.85, 1)))
-  }
+  const grove = new Grove(new Rng(11))
+  const place = (variant: TreeVariant, x: number, z: number, height: number) =>
+    grove.plant(variant, x, terrainHeight(x, z) - 0.15, z, height)
 
   const trees = treeLayout()
   trees.forEach((tree, i) => {
@@ -168,25 +202,5 @@ export async function createTrees(): Promise<Group> {
     place(options[i % options.length]!, tree.x, tree.z, tree.height)
   })
   bushLayout(trees).forEach((b, i) => place(variants.bush[i % 2]!, b.x, b.z, b.size))
-
-  const group = new Group()
-  group.name = 'trees'
-  for (const [variant, matrices] of placements) {
-    const colors = tints.get(variant)!
-    for (const [part, tinted] of [
-      [variant.bark, false],
-      [variant.leaves, true],
-    ] as const) {
-      const mesh = new InstancedMesh(part.geometry, part.material, matrices.length)
-      matrices.forEach((m, j) => {
-        mesh.setMatrixAt(j, m)
-        if (tinted) mesh.setColorAt(j, colors[j]!)
-      })
-      mesh.castShadow = true
-      mesh.receiveShadow = true
-      mesh.computeBoundingSphere()
-      group.add(mesh)
-    }
-  }
-  return group
+  return grove.build('trees', true)
 }

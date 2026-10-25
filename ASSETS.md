@@ -8,6 +8,24 @@
 | Leafy Grass texture                          | `public/assets/textures/` | Charlotte Baglioni     | CC0                                                             | <https://polyhaven.com/a/leafy_grass>                                          |
 | Nature Kit trees                             | `public/assets/trees/`    | Kenney                 | CC0                                                             | <https://kenney.nl/assets/nature-kit>                                          |
 
+## Hangar
+
+The hangar's props and surface textures live in `public/assets/hangar/`. Each
+one's title, author, licence and source page is in `src/render/hangar/props.ts`,
+which the in-app Credits list reads, so the list there is the full record:
+
+- **Poly Haven (CC0):** the room's scanned surfaces (floor, walls, shutter,
+  driveway, lawn) and the garage props: tool chest, shelving, crates, hand
+  tools, stool, extinguisher, garden things, ceiling light.
+- **Sketchfab (CC-BY 4.0):** the RC kit: workbench, transmitter, 3D printer,
+  LiPo pack and safe bag, CA glue, soldering iron, bike, shop vac, hobby knife,
+  cutting mat, servo. Credit must ship with the app (the Credits panel).
+
+`scripts/hangar-assets.ts` makes the shipped copies from the downloads: scaled
+to real size, brand logos painted out (transmitter, LiPo, shop vac, printer),
+textures resized and WebP-encoded, geometry simplified and meshopt-compressed.
+The garden outside is grown with ez-tree, like the field's trees.
+
 ## Data
 
 | Data                                    | Path             | Source                                                                              |
@@ -22,7 +40,7 @@ shipped copy is generated from it by `scripts/split-model.ts`, which splits
 the propeller and control surfaces into separate nodes.
 
 The Extra 300 model is CC-BY-SA: the credit must ship with the app (Credits
-panel and start screen), and our adaptation of it (the glTF, the repainted
+panel and hangar), and our adaptation of it (the glTF, the repainted
 skin) is shared under the same licence, as its `license.txt` says. It is
 converted from the author's `.blend` by `scripts/extra300/export.py` into
 `models-src/extra300/`, with the Blender logos painted out of the skin by
